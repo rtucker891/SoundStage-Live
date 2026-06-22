@@ -20,3 +20,40 @@ export async function getEpisodes(): Promise<Episode[]> {
 
   return response.json();
 }
+export async function createShow(data: {
+  title: string;
+  description: string;
+}) {
+  const response = await fetch("/api/shows", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to create show");
+  }
+
+  return response.json();
+}
+export async function createEpisode(data: {
+  title: string;
+  guest: string;
+  show: string;
+}) {
+  const response = await fetch("/api/episodes", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to create episode");
+  }
+
+  return response.json();
+}
