@@ -57,3 +57,26 @@ export async function createEpisode(data: {
 
   return response.json();
 }
+import type { EpisodeStatus } from "@/types/episode";
+
+export async function updateEpisodeStatus(
+  id: string,
+  status: EpisodeStatus
+) {
+  const response = await fetch("/api/episodes", {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      id,
+      status,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to update episode status");
+  }
+
+  return response.json();
+}

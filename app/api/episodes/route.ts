@@ -13,7 +13,7 @@ export async function POST(request: Request) {
     id: `episode-${Date.now()}`,
     title: body.title,
     show: body.show || "SoundStage Live Demo",
-    status: "Draft" as const,
+    status: "Planning" as const,
     guest: body.guest || "Pending",
   };
 
@@ -28,4 +28,20 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json(newEpisode, { status: 201 });
+}
+export async function PATCH(request: Request) {
+  const body = await request.json();
+
+  const episode = episodes.find((item) => item.id === body.id);
+
+  if (!episode) {
+    return NextResponse.json(
+      { message: "Episode not found" },
+      { status: 404 }
+    );
+  }
+
+  episode.status = body.status;
+
+  return NextResponse.json(episode);
 }

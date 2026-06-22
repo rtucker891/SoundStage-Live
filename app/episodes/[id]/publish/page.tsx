@@ -4,7 +4,10 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
 import AppShell from "@/components/AppShell";
-import { getEpisodes } from "@/lib/api";
+import {
+  getEpisodes,
+  updateEpisodeStatus,
+} from "@/lib/api";
 
 import type { Episode } from "@/types/episode";
 
@@ -16,22 +19,52 @@ export default function EpisodePublishPage() {
 
   useEffect(() => {
     getEpisodes()
-      .then((episodes) => {
+      .then(async (episodes) => {
         const selectedEpisode = episodes.find(
           (item) => item.id === params.id
         );
+
+        if (
+          selectedEpisode &&
+          selectedEpisode.status === "Editing"
+        ) {
+          await updateEpisodeStatus(
+            selectedEpisode.id,
+            "Ready to Publish"
+          );
+
+          selectedEpisode.status = "Ready to Publish";
+        }
 
         setEpisode(selectedEpisode || null);
       })
       .finally(() => setLoading(false));
   }, [params.id]);
 
+  async function handlePublish() {
+    if (!episode) return;
+
+    await updateEpisodeStatus(
+      episode.id,
+      "Published"
+    );
+
+    setEpisode({
+      ...episode,
+      status: "Published",
+    });
+  }
+
   return (
     <AppShell>
       {loading ? (
-        <p className="text-slate-500">Loading publish settings...</p>
+        <p className="text-slate-500">
+          Loading publish settings...
+        </p>
       ) : !episode ? (
-        <p className="text-red-500">Episode not found.</p>
+        <p className="text-red-500">
+          Episode not found.
+        </p>
       ) : (
         <>
           <div className="flex items-center justify-between">
@@ -46,13 +79,15 @@ export default function EpisodePublishPage() {
             </div>
 
             <span className="rounded-full bg-purple-100 px-4 py-2 text-sm font-semibold text-purple-700">
-              Ready to Publish
+              {episode.status}
             </span>
           </div>
 
           <div className="mt-8 grid gap-6 lg:grid-cols-3">
             <div className="rounded-xl bg-white p-6 shadow">
-              <h2 className="text-xl font-bold">Show Notes</h2>
+              <h2 className="text-xl font-bold">
+                Show Notes
+              </h2>
 
               <textarea
                 rows={10}
@@ -62,7 +97,9 @@ export default function EpisodePublishPage() {
             </div>
 
             <div className="rounded-xl bg-white p-6 shadow">
-              <h2 className="text-xl font-bold">Distribution</h2>
+              <h2 className="text-xl font-bold">
+                Distribution
+              </h2>
 
               <div className="mt-4 space-y-4">
                 <label className="flex items-center gap-3">
@@ -88,13 +125,18 @@ export default function EpisodePublishPage() {
             </div>
 
             <div className="rounded-xl bg-white p-6 shadow">
-              <h2 className="text-xl font-bold">Release</h2>
+              <h2 className="text-xl font-bold">
+                Release
+              </h2>
 
               <p className="mt-2 text-slate-600">
                 Publish when you're ready.
               </p>
 
-              <button className="mt-6 w-full rounded-lg bg-purple-600 px-5 py-3 font-semibold text-white">
+              <button
+                onClick={handlePublish}
+                className="mt-6 w-full rounded-lg bg-purple-600 px-5 py-3 font-semibold text-white"
+              >
                 Publish Episode
               </button>
             </div>

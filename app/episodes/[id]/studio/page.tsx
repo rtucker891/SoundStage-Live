@@ -4,7 +4,10 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
 import AppShell from "@/components/AppShell";
-import { getEpisodes } from "@/lib/api";
+import {
+  getEpisodes,
+  updateEpisodeStatus,
+} from "@/lib/api";
 
 import type { Episode } from "@/types/episode";
 
@@ -16,10 +19,22 @@ export default function EpisodeStudioPage() {
 
   useEffect(() => {
     getEpisodes()
-      .then((episodes) => {
+      .then(async (episodes) => {
         const selectedEpisode = episodes.find(
           (item) => item.id === params.id
         );
+
+        if (
+          selectedEpisode &&
+          selectedEpisode.status === "Planning"
+        ) {
+          await updateEpisodeStatus(
+            selectedEpisode.id,
+            "Recording"
+          );
+
+          selectedEpisode.status = "Recording";
+        }
 
         setEpisode(selectedEpisode || null);
       })
@@ -46,13 +61,15 @@ export default function EpisodeStudioPage() {
             </div>
 
             <span className="rounded-full bg-green-100 px-4 py-2 text-sm font-semibold text-green-700">
-              Ready to Record
+              {episode.status}
             </span>
           </div>
 
           <div className="mt-8 grid gap-6 lg:grid-cols-3">
             <div className="rounded-xl bg-white p-6 shadow">
-              <h2 className="text-xl font-bold">Microphone Check</h2>
+              <h2 className="text-xl font-bold">
+                Microphone Check
+              </h2>
 
               <p className="mt-2 text-slate-600">
                 Verify microphone access and audio quality.
@@ -64,7 +81,9 @@ export default function EpisodeStudioPage() {
             </div>
 
             <div className="rounded-xl bg-white p-6 shadow">
-              <h2 className="text-xl font-bold">Guest Room</h2>
+              <h2 className="text-xl font-bold">
+                Guest Room
+              </h2>
 
               <p className="mt-2 text-slate-600">
                 Guest: {episode.guest}
@@ -76,7 +95,9 @@ export default function EpisodeStudioPage() {
             </div>
 
             <div className="rounded-xl bg-white p-6 shadow">
-              <h2 className="text-xl font-bold">Recording</h2>
+              <h2 className="text-xl font-bold">
+                Recording
+              </h2>
 
               <p className="mt-2 text-slate-600">
                 Recording status: Idle

@@ -91,7 +91,7 @@ export default function EpisodeDetailsPage() {
             </Link>
 
             <Link
-              href="/publish"
+              href={`/episodes/${episode.id}/publish`}
               className="rounded-xl bg-white p-6 shadow hover:shadow-md"
             >
               <h2 className="text-xl font-bold">Publish</h2>

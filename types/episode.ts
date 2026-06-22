@@ -1,7 +1,14 @@
+export type EpisodeStatus =
+  | "Planning"
+  | "Recording"
+  | "Editing"
+  | "Ready to Publish"
+  | "Published";
+
 export type Episode = {
   id: string;
   title: string;
   show: string;
-  status: "Draft" | "Planning" | "Editing" | "Published";
+  status: EpisodeStatus;
   guest: string;
 };

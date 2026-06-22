@@ -4,7 +4,10 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
 import AppShell from "@/components/AppShell";
-import { getEpisodes } from "@/lib/api";
+import {
+  getEpisodes,
+  updateEpisodeStatus,
+} from "@/lib/api";
 
 import type { Episode } from "@/types/episode";
 
@@ -16,10 +19,22 @@ export default function EpisodeEditorPage() {
 
   useEffect(() => {
     getEpisodes()
-      .then((episodes) => {
+      .then(async (episodes) => {
         const selectedEpisode = episodes.find(
           (item) => item.id === params.id
         );
+
+        if (
+          selectedEpisode &&
+          selectedEpisode.status === "Recording"
+        ) {
+          await updateEpisodeStatus(
+            selectedEpisode.id,
+            "Editing"
+          );
+
+          selectedEpisode.status = "Editing";
+        }
 
         setEpisode(selectedEpisode || null);
       })
@@ -46,13 +61,15 @@ export default function EpisodeEditorPage() {
             </div>
 
             <span className="rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-700">
-              Ready to Edit
+              {episode.status}
             </span>
           </div>
 
           <div className="mt-8 grid gap-6 lg:grid-cols-3">
             <div className="rounded-xl bg-white p-6 shadow">
-              <h2 className="text-xl font-bold">Transcript</h2>
+              <h2 className="text-xl font-bold">
+                Transcript
+              </h2>
 
               <p className="mt-2 text-slate-600">
                 Review and edit the generated transcript.
@@ -64,7 +81,9 @@ export default function EpisodeEditorPage() {
             </div>
 
             <div className="rounded-xl bg-white p-6 shadow">
-              <h2 className="text-xl font-bold">Audio Cleanup</h2>
+              <h2 className="text-xl font-bold">
+                Audio Cleanup
+              </h2>
 
               <p className="mt-2 text-slate-600">
                 Apply AI enhancements to improve quality.
@@ -86,7 +105,9 @@ export default function EpisodeEditorPage() {
             </div>
 
             <div className="rounded-xl bg-white p-6 shadow">
-              <h2 className="text-xl font-bold">Export</h2>
+              <h2 className="text-xl font-bold">
+                Export
+              </h2>
 
               <p className="mt-2 text-slate-600">
                 Download or publish the edited audio.
