@@ -80,3 +80,24 @@ export async function updateEpisodeStatus(
 
   return response.json();
 }
+export async function updateEpisode(data: {
+  id: string;
+  title: string;
+  guest: string;
+  show: string;
+  status: EpisodeStatus;
+}) {
+  const response = await fetch("/api/episodes", {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to update episode");
+  }
+
+  return response.json();
+}

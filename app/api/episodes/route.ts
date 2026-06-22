@@ -29,6 +29,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json(newEpisode, { status: 201 });
 }
+
 export async function PATCH(request: Request) {
   const body = await request.json();
 
@@ -41,7 +42,21 @@ export async function PATCH(request: Request) {
     );
   }
 
-  episode.status = body.status;
+  if (body.title) {
+    episode.title = body.title;
+  }
+
+  if (body.guest) {
+    episode.guest = body.guest;
+  }
+
+  if (body.show) {
+    episode.show = body.show;
+  }
+
+  if (body.status) {
+    episode.status = body.status;
+  }
 
   return NextResponse.json(episode);
 }

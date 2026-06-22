@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
 import AppShell from "@/components/AppShell";
+import EditEpisodeForm from "@/components/episodes/EditEpisodeForm";
+
 import { getEpisodes } from "@/lib/api";
 
 import type { Episode } from "@/types/episode";
@@ -100,6 +102,15 @@ export default function EpisodeDetailsPage() {
                 Prepare show notes and release settings.
               </p>
             </Link>
+          </div>
+
+          <div className="mt-8">
+            <EditEpisodeForm
+              episode={episode}
+              onUpdate={(updatedEpisode) =>
+                setEpisode(updatedEpisode)
+              }
+            />
           </div>
         </>
       )}
