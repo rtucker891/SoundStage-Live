@@ -5,11 +5,19 @@ import { useParams } from "next/navigation";
 
 import AppShell from "@/components/AppShell";
 import {
+  createRecording,
   getEpisodes,
   updateEpisodeStatus,
 } from "@/lib/api";
 
 import type { Episode } from "@/types/episode";
+
+type SavedRecording = {
+  id: string;
+  name: string;
+  duration: number;
+  audioUrl: string;
+};
 
 export default function EpisodeStudioPage() {
   const params = useParams();
@@ -20,10 +28,12 @@ export default function EpisodeStudioPage() {
 
   const [episode, setEpisode] = useState<Episode | null>(null);
   const [loading, setLoading] = useState(true);
-
   const [recording, setRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [savedRecordings, setSavedRecordings] = useState<SavedRecording[]>(
+    []
+  );
   const [micStatus, setMicStatus] = useState("Not tested");
 
   useEffect(() => {
@@ -57,9 +67,7 @@ export default function EpisodeStudioPage() {
           audio: true,
         });
 
-      stream.getTracks().forEach((track) =>
-        track.stop()
-      );
+      stream.getTracks().forEach((track) => track.stop());
 
       setMicStatus("Microphone ready");
     } catch {
@@ -82,21 +90,30 @@ export default function EpisodeStudioPage() {
       audioChunksRef.current.push(event.data);
     };
 
-    mediaRecorder.onstop = () => {
-      const audioBlob = new Blob(
-        audioChunksRef.current,
-        {
-          type: "audio/webm",
-        }
-      );
+    mediaRecorder.onstop = async () => {
+      const audioBlob = new Blob(audioChunksRef.current, {
+        type: "audio/webm",
+      });
 
       const url = URL.createObjectURL(audioBlob);
 
       setAudioUrl(url);
 
-      stream.getTracks().forEach((track) =>
-        track.stop()
-      );
+      if (episode) {
+        const savedRecording = await createRecording({
+          episodeId: episode.id,
+          name: `Recording ${new Date().toLocaleTimeString()}`,
+          duration: recordingTime,
+          audioUrl: url,
+        });
+
+        setSavedRecordings((current) => [
+          ...current,
+          savedRecording,
+        ]);
+      }
+
+      stream.getTracks().forEach((track) => track.stop());
     };
 
     mediaRecorder.start();
@@ -125,13 +142,9 @@ export default function EpisodeStudioPage() {
   return (
     <AppShell>
       {loading ? (
-        <p className="text-slate-500">
-          Loading studio...
-        </p>
+        <p className="text-slate-500">Loading studio...</p>
       ) : !episode ? (
-        <p className="text-red-500">
-          Episode not found.
-        </p>
+        <p className="text-red-500">Episode not found.</p>
       ) : (
         <>
           <div className="flex items-center justify-between">
@@ -157,8 +170,7 @@ export default function EpisodeStudioPage() {
               </h2>
 
               <p className="mt-2 text-slate-600">
-                Verify microphone access before
-                recording.
+                Verify microphone access before recording.
               </p>
 
               <p className="mt-4 text-sm font-semibold text-slate-500">
@@ -174,9 +186,7 @@ export default function EpisodeStudioPage() {
             </div>
 
             <div className="rounded-xl bg-white p-6 shadow">
-              <h2 className="text-xl font-bold">
-                Guest Room
-              </h2>
+              <h2 className="text-xl font-bold">Guest Room</h2>
 
               <p className="mt-2 text-slate-600">
                 Guest: {episode.guest}
@@ -188,9 +198,7 @@ export default function EpisodeStudioPage() {
             </div>
 
             <div className="rounded-xl bg-white p-6 shadow">
-              <h2 className="text-xl font-bold">
-                Recording
-              </h2>
+              <h2 className="text-xl font-bold">Recording</h2>
 
               <p className="mt-2 text-slate-600">
                 Recording timer:{" "}
@@ -231,6 +239,41 @@ export default function EpisodeStudioPage() {
                 src={audioUrl}
                 className="mt-6 w-full"
               />
+            </div>
+          )}
+
+          {savedRecordings.length > 0 && (
+            <div className="mt-8 rounded-xl bg-white p-6 shadow">
+              <h2 className="text-xl font-bold">Audio Library</h2>
+
+              <p className="mt-2 text-slate-600">
+                Saved recordings for this episode.
+              </p>
+
+              <div className="mt-6 space-y-4">
+                {savedRecordings.map((recording) => (
+                  <div
+                    key={recording.id}
+                    className="rounded-lg border border-slate-200 p-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold">
+                        {recording.name}
+                      </p>
+
+                      <p className="text-sm text-slate-500">
+                        {recording.duration} sec
+                      </p>
+                    </div>
+
+                    <audio
+                      controls
+                      src={recording.audioUrl}
+                      className="mt-4 w-full"
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </>

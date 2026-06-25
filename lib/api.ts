@@ -1,5 +1,9 @@
+import type { Recording } from "@/types/recording";
 import type { Show } from "@/types/show";
-import type { Episode } from "@/types/episode";
+import type {
+  Episode,
+  EpisodeStatus,
+} from "@/types/episode";
 
 export async function getShows(): Promise<Show[]> {
   const response = await fetch("/api/shows");
@@ -20,6 +24,7 @@ export async function getEpisodes(): Promise<Episode[]> {
 
   return response.json();
 }
+
 export async function createShow(data: {
   title: string;
   description: string;
@@ -38,6 +43,7 @@ export async function createShow(data: {
 
   return response.json();
 }
+
 export async function createEpisode(data: {
   title: string;
   guest: string;
@@ -57,7 +63,6 @@ export async function createEpisode(data: {
 
   return response.json();
 }
-import type { EpisodeStatus } from "@/types/episode";
 
 export async function updateEpisodeStatus(
   id: string,
@@ -80,6 +85,7 @@ export async function updateEpisodeStatus(
 
   return response.json();
 }
+
 export async function updateEpisode(data: {
   id: string;
   title: string;
@@ -97,6 +103,37 @@ export async function updateEpisode(data: {
 
   if (!response.ok) {
     throw new Error("Failed to update episode");
+  }
+
+  return response.json();
+}
+
+export async function getRecordings(): Promise<Recording[]> {
+  const response = await fetch("/api/recordings");
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch recordings");
+  }
+
+  return response.json();
+}
+
+export async function createRecording(data: {
+  episodeId: string;
+  name: string;
+  duration: number;
+  audioUrl: string;
+}) {
+  const response = await fetch("/api/recordings", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to create recording");
   }
 
   return response.json();
