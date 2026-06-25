@@ -53,7 +53,7 @@ export default function EpisodeDetailsPage() {
             </span>
           </div>
 
-          <div className="mt-8 grid gap-6 lg:grid-cols-4">
+          <div className="mt-8 grid gap-6 lg:grid-cols-5">
             <div className="rounded-xl bg-white p-6 shadow">
               <h2 className="text-xl font-bold">Overview</h2>
 
@@ -69,6 +69,16 @@ export default function EpisodeDetailsPage() {
                 {episode.guest}
               </p>
             </div>
+            <Link
+  href={`/episodes/${episode.id}/assets`}
+  className="rounded-xl bg-white p-6 shadow hover:shadow-md"
+>
+  <h2 className="text-xl font-bold">Assets</h2>
+
+  <p className="mt-2 text-sm text-slate-600">
+    Manage recordings, transcripts, artwork, and files.
+  </p>
+</Link>
 
             <Link
               href={`/episodes/${episode.id}/studio`}
