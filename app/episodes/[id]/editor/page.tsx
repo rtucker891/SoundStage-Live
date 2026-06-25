@@ -5,48 +5,103 @@ import { useParams } from "next/navigation";
 
 import AppShell from "@/components/AppShell";
 import {
+  createTranscript,
   getEpisodes,
+  getTranscripts,
   updateEpisodeStatus,
 } from "@/lib/api";
 
 import type { Episode } from "@/types/episode";
+import type { Transcript } from "@/types/transcript";
 
 export default function EpisodeEditorPage() {
   const params = useParams();
 
   const [episode, setEpisode] = useState<Episode | null>(null);
+  const [transcript, setTranscript] = useState<Transcript | null>(null);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
-    getEpisodes()
-      .then(async (episodes) => {
-        const selectedEpisode = episodes.find(
-          (item) => item.id === params.id
+    async function load() {
+      const episodes = await getEpisodes();
+
+      const selectedEpisode = episodes.find(
+        (item) => item.id === params.id
+      );
+
+      if (
+        selectedEpisode &&
+        selectedEpisode.status === "Recording"
+      ) {
+        await updateEpisodeStatus(
+          selectedEpisode.id,
+          "Editing"
         );
 
-        if (
-          selectedEpisode &&
-          selectedEpisode.status === "Recording"
-        ) {
-          await updateEpisodeStatus(
-            selectedEpisode.id,
-            "Editing"
-          );
+        selectedEpisode.status = "Editing";
+      }
 
-          selectedEpisode.status = "Editing";
-        }
+      setEpisode(selectedEpisode || null);
 
-        setEpisode(selectedEpisode || null);
-      })
-      .finally(() => setLoading(false));
+      const transcripts = await getTranscripts();
+
+      const existing = transcripts.find(
+        (item) => item.episodeId === params.id
+      );
+
+      if (existing) {
+        setTranscript(existing);
+      }
+
+      setLoading(false);
+    }
+
+    load();
   }, [params.id]);
+
+  async function generateTranscript() {
+    if (!episode) return;
+
+    setGenerating(true);
+
+    const created = await createTranscript({
+      episodeId: episode.id,
+      segments: [
+        {
+          id: "1",
+          speaker: "Host",
+          startTime: 0,
+          endTime: 12,
+          text: "Welcome to another episode of SoundStage Live.",
+        },
+        {
+          id: "2",
+          speaker: "Guest",
+          startTime: 13,
+          endTime: 28,
+          text: "Thank you for having me on the show.",
+        },
+        {
+          id: "3",
+          speaker: "Host",
+          startTime: 29,
+          endTime: 48,
+          text: "Today we're discussing podcast production.",
+        },
+      ],
+    });
+
+    setTranscript(created);
+    setGenerating(false);
+  }
 
   return (
     <AppShell>
       {loading ? (
-        <p className="text-slate-500">Loading editor...</p>
+        <p>Loading editor...</p>
       ) : !episode ? (
-        <p className="text-red-500">Episode not found.</p>
+        <p>Episode not found.</p>
       ) : (
         <>
           <div className="flex items-center justify-between">
@@ -60,69 +115,54 @@ export default function EpisodeEditorPage() {
               </p>
             </div>
 
-            <span className="rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-700">
+            <span className="rounded-full bg-amber-100 px-4 py-2 font-semibold text-amber-700">
               {episode.status}
             </span>
           </div>
 
-          <div className="mt-8 grid gap-6 lg:grid-cols-3">
-            <div className="rounded-xl bg-white p-6 shadow">
-              <h2 className="text-xl font-bold">
-                Transcript
-              </h2>
+          <div className="mt-8 rounded-xl bg-white p-6 shadow">
+            <h2 className="text-xl font-bold">
+              Transcript
+            </h2>
 
-              <p className="mt-2 text-slate-600">
-                Review and edit the generated transcript.
-              </p>
+            {!transcript ? (
+              <>
+                <p className="mt-4 text-slate-600">
+                  No transcript has been generated yet.
+                </p>
 
-              <div className="mt-6 rounded-lg bg-slate-100 p-4 text-sm text-slate-500">
-                Transcript will appear here.
+                <button
+                  onClick={generateTranscript}
+                  disabled={generating}
+                  className="mt-6 rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white"
+                >
+                  {generating
+                    ? "Generating..."
+                    : "Generate Transcript"}
+                </button>
+              </>
+            ) : (
+              <div className="mt-6 space-y-6">
+                {transcript.segments.map((segment) => (
+                  <div
+                    key={segment.id}
+                    className="rounded-lg border border-slate-200 p-4"
+                  >
+                    <p className="font-semibold">
+                      {segment.speaker}
+                    </p>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                      {segment.startTime}s - {segment.endTime}s
+                    </p>
+
+                    <p className="mt-3">
+                      {segment.text}
+                    </p>
+                  </div>
+                ))}
               </div>
-            </div>
-
-            <div className="rounded-xl bg-white p-6 shadow">
-              <h2 className="text-xl font-bold">
-                Audio Cleanup
-              </h2>
-
-              <p className="mt-2 text-slate-600">
-                Apply AI enhancements to improve quality.
-              </p>
-
-              <div className="mt-6 space-y-3">
-                <button className="w-full rounded-lg bg-slate-950 px-5 py-3 font-semibold text-white">
-                  Enhance Speech
-                </button>
-
-                <button className="w-full rounded-lg bg-slate-950 px-5 py-3 font-semibold text-white">
-                  Remove Noise
-                </button>
-
-                <button className="w-full rounded-lg bg-slate-950 px-5 py-3 font-semibold text-white">
-                  Remove Silence
-                </button>
-              </div>
-            </div>
-
-            <div className="rounded-xl bg-white p-6 shadow">
-              <h2 className="text-xl font-bold">
-                Export
-              </h2>
-
-              <p className="mt-2 text-slate-600">
-                Download or publish the edited audio.
-              </p>
-
-              <div className="mt-6 space-y-3">
-                <button className="w-full rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white">
-                  Export MP3
-                </button>
-
-                <button className="w-full rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white">
-                  Export WAV
-                </button>
-              </div>
-            </div>
+            )}
           </div>
         </>
       )}

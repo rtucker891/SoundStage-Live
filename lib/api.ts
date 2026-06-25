@@ -1,9 +1,11 @@
-import type { Recording } from "@/types/recording";
+import type { Asset } from "@/types/asset";
 import type { Show } from "@/types/show";
 import type {
   Episode,
   EpisodeStatus,
 } from "@/types/episode";
+import type { Recording } from "@/types/recording";
+import type { Transcript } from "@/types/transcript";
 
 export async function getShows(): Promise<Show[]> {
   const response = await fetch("/api/shows");
@@ -134,6 +136,99 @@ export async function createRecording(data: {
 
   if (!response.ok) {
     throw new Error("Failed to create recording");
+  }
+
+  return response.json();
+}
+
+export async function getTranscripts(): Promise<Transcript[]> {
+  const response = await fetch("/api/transcripts");
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch transcripts");
+  }
+
+  return response.json();
+}
+
+export async function createTranscript(data: {
+  episodeId: string;
+  segments: Transcript["segments"];
+}) {
+  const response = await fetch("/api/transcripts", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to create transcript");
+  }
+
+  return response.json();
+}
+
+export async function updateTranscript(data: {
+  id: string;
+  segments: Transcript["segments"];
+}) {
+  const response = await fetch("/api/transcripts", {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to update transcript");
+  }
+
+  return response.json();
+}
+export async function getAssets(): Promise<Asset[]> {
+  const response = await fetch("/api/assets");
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch assets");
+  }
+
+  return response.json();
+}
+
+export async function createAsset(data: {
+  episodeId: string;
+  name: string;
+  type: Asset["type"];
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  url: string;
+}) {
+  const response = await fetch("/api/assets", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to create asset");
+  }
+
+  return response.json();
+}
+
+export async function deleteAsset(id: string) {
+  const response = await fetch(`/api/assets?id=${id}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to delete asset");
   }
 
   return response.json();
