@@ -3,12 +3,14 @@
 import EpisodeNavigation from "@/components/episodes/EpisodeNavigation";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import type { Asset } from "@/types/asset";
 
 import AppShell from "@/components/AppShell";
 import {
   createAsset,
   createShowNote,
   createTranscript,
+  getAssets,
   getEpisodes,
   getShowNotes,
   getTranscripts,
@@ -23,12 +25,17 @@ export default function EpisodeEditorPage() {
   const params = useParams();
 
   const [episode, setEpisode] = useState<Episode | null>(null);
-  const [transcript, setTranscript] = useState<Transcript | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
-  const [showNote, setShowNote] = useState<ShowNote | null>(null);
-  useEffect(() => {
-    async function load() {
+const [transcript, setTranscript] = useState<Transcript | null>(null);
+const [loading, setLoading] = useState(true);
+const [generating, setGenerating] = useState(false);
+const [showNote, setShowNote] = useState<ShowNote | null>(null);
+const [audioFile, setAudioFile] = useState<File | null>(null);
+
+const [recordingAsset, setRecordingAsset] =
+  useState<Asset | null>(null);
+
+   useEffect(() => {
+  async function load() {
       const episodes = await getEpisodes();
 
       const selectedEpisode = episodes.find(
@@ -58,58 +65,73 @@ export default function EpisodeEditorPage() {
       if (existing) {
         setTranscript(existing);
       }
+const assets = await getAssets();
 
+const recording = assets.find(
+  (asset) =>
+    asset.episodeId === params.id &&
+    asset.type === "recording"
+);
+
+setRecordingAsset(recording || null);
       setLoading(false);
     }
 
     load();
   }, [params.id]);
 
-  async function generateTranscript() {
-    if (!episode) return;
+async function generateTranscript() {
+  if (!episode || !recordingAsset?.url) return;
 
-    setGenerating(true);
+  setGenerating(true);
 
-    const created = await createTranscript({
-      episodeId: episode.id,
-           segments: [
-        {
-          id: "1",
-          speaker: "Host",
-          startTime: 0,
-          endTime: 12,
-          text: "Welcome to another episode of SoundStage Live.",
-        },
-        {
-          id: "2",
-          speaker: "Guest",
-          startTime: 13,
-          endTime: 28,
-          text: "Thank you for having me on the show.",
-        },
-        {
-          id: "3",
-          speaker: "Host",
-          startTime: 29,
-          endTime: 48,
-          text: "Today we're discussing podcast production.",
-        },
-      ],
-    });
+  const audioResponse = await fetch(recordingAsset.url);
+  const audioBlob = await audioResponse.blob();
 
-    await createAsset({
-      episodeId: episode.id,
-      name: "Episode Transcript",
-      type: "transcript",
-      fileName: "transcript.json",
-      fileSize: JSON.stringify(created).length,
-      mimeType: "application/json",
-      url: "#",
-    });
+  const formData = new FormData();
 
-    setTranscript(created);
-    setGenerating(false);
-  }
+  formData.append(
+    "file",
+    audioBlob,
+    recordingAsset.fileName
+  );
+
+  const response = await fetch(
+    "/api/ai/transcribe",
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  const data = await response.json();
+
+  const created = await createTranscript({
+    episodeId: episode.id,
+    segments: [
+      {
+        id: "1",
+        speaker: "Speaker",
+        startTime: 0,
+        endTime: 0,
+        text: data.text,
+      },
+    ],
+  });
+
+  await createAsset({
+    episodeId: episode.id,
+    name: "AI Transcript",
+    type: "transcript",
+    fileName: "transcript.json",
+    fileSize: JSON.stringify(created).length,
+    mimeType: "application/json",
+    url: "#",
+  });
+
+  setTranscript(created);
+  setGenerating(false);
+}
   
 
   async function generateShowNotes() {
@@ -191,8 +213,11 @@ export default function EpisodeEditorPage() {
             {!transcript ? (
               <>
                 <p className="mt-4 text-slate-600">
-                  No sample transcript has been generated yet.
+                  Generate an AI transcript from the saved recording.
                 </p>
+   
+
+
 
                 <button
                   onClick={generateTranscript}
@@ -201,7 +226,7 @@ export default function EpisodeEditorPage() {
                 >
                   {generating
                     ? "Generating..."
-                   : "Generate Sample Transcript"}
+                   : "Generate AI Transcript"}
                 </button>
               </>
             ) : (

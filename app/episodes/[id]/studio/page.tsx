@@ -63,7 +63,32 @@ export default function EpisodeStudioPage() {
         type: "audio/webm",
       });
 
-      const url = URL.createObjectURL(blob);
+      const formData = new FormData();
+
+formData.append(
+  "file",
+  blob,
+  `recording-${Date.now()}.webm`
+);
+
+formData.append("episodeId", episode.id);
+formData.append(
+  "name",
+  `Recording ${new Date().toLocaleTimeString()}`
+);
+
+const uploadResponse = await fetch(
+  "/api/recordings",
+  {
+    method: "POST",
+    body: formData,
+  }
+);
+
+const uploadedRecording =
+  await uploadResponse.json();
+
+const url = uploadedRecording.audioUrl;
 
       setAudioUrl(url);
 

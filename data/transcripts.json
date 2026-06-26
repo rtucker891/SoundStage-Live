@@ -54,5 +54,19 @@
         "text": "Today we're discussing podcast production."
       }
     ]
+  },
+  {
+    "id": "transcript-1782503920477",
+    "episodeId": "episode-1782500204293",
+    "createdAt": "2026-06-26T19:58:40.477Z",
+    "segments": [
+      {
+        "id": "1",
+        "speaker": "Speaker",
+        "startTime": 0,
+        "endTime": 0,
+        "text": "Testing 1, 2, 3, 4, 5. 5, 4, 3, 2, 1. This is a test of the soundstage recording studio. Testing 1, 2, 3, 4, 5."
+      }
+    ]
   }
 ]

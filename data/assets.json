@@ -97,5 +97,49 @@
     "mimeType": "text/markdown",
     "createdAt": "2026-06-26T17:40:26.237Z",
     "url": "#"
+  },
+  {
+    "id": "asset-1782497127703",
+    "episodeId": "episode-1782495533905",
+    "name": "AI Show Notes",
+    "type": "show-notes",
+    "fileName": "ai-show-notes.md",
+    "fileSize": 1402,
+    "mimeType": "text/markdown",
+    "createdAt": "2026-06-26T18:05:27.703Z",
+    "url": "#"
+  },
+  {
+    "id": "asset-1782497718970",
+    "episodeId": "episode-1782495533905",
+    "name": "Recording 2:15:18 PM",
+    "type": "recording",
+    "fileName": "recording-1782497718941.webm",
+    "fileSize": 234068,
+    "mimeType": "audio/webm",
+    "createdAt": "2026-06-26T18:15:18.970Z",
+    "url": "blob:http://localhost:3000/5f94dd65-e192-4a40-ae60-5eef639924bf"
+  },
+  {
+    "id": "asset-1782501413442",
+    "episodeId": "episode-1782500204293",
+    "name": "Recording 3:16:53 PM",
+    "type": "recording",
+    "fileName": "recording-1782501413410.webm",
+    "fileSize": 199292,
+    "mimeType": "audio/webm",
+    "createdAt": "2026-06-26T19:16:53.442Z",
+    "url": "/recordings/recording-1782501413405.webm"
+  },
+  {
+    "id": "asset-1782503920495",
+    "episodeId": "episode-1782500204293",
+    "name": "AI Transcript",
+    "type": "transcript",
+    "fileName": "transcript.json",
+    "fileSize": 299,
+    "mimeType": "application/json",
+    "createdAt": "2026-06-26T19:58:40.495Z",
+    "url": "#"
   }
 ]
