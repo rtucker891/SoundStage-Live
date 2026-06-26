@@ -1,3 +1,4 @@
+import type { ShowNote } from "@/types/show-note";
 import type { Asset } from "@/types/asset";
 import type { Show } from "@/types/show";
 import type {
@@ -229,6 +230,36 @@ export async function deleteAsset(id: string) {
 
   if (!response.ok) {
     throw new Error("Failed to delete asset");
+  }
+
+  return response.json();
+}
+export async function getShowNotes(): Promise<ShowNote[]> {
+  const response = await fetch("/api/show-notes");
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch show notes");
+  }
+
+  return response.json();
+}
+
+export async function createShowNote(data: {
+  episodeId: string;
+  title: string;
+  summary: string;
+  bulletPoints: string[];
+}) {
+  const response = await fetch("/api/show-notes", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to create show note");
   }
 
   return response.json();

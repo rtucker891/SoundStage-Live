@@ -6,14 +6,17 @@ import { useParams } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import {
   createAsset,
+  createShowNote,
   createTranscript,
   getEpisodes,
+  getShowNotes,
   getTranscripts,
   updateEpisodeStatus,
 } from "@/lib/api";
 
 import type { Episode } from "@/types/episode";
 import type { Transcript } from "@/types/transcript";
+import type { ShowNote } from "@/types/show-note";
 
 export default function EpisodeEditorPage() {
   const params = useParams();
@@ -22,7 +25,7 @@ export default function EpisodeEditorPage() {
   const [transcript, setTranscript] = useState<Transcript | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-
+  const [showNote, setShowNote] = useState<ShowNote | null>(null);
   useEffect(() => {
     async function load() {
       const episodes = await getEpisodes();
@@ -68,7 +71,7 @@ export default function EpisodeEditorPage() {
 
     const created = await createTranscript({
       episodeId: episode.id,
-      segments: [
+           segments: [
         {
           id: "1",
           speaker: "Host",
@@ -106,8 +109,38 @@ export default function EpisodeEditorPage() {
     setTranscript(created);
     setGenerating(false);
   }
+  
+
+  async function generateShowNotes() {
+    if (!episode) return;
+
+    const created = await createShowNote({
+      episodeId: episode.id,
+      title: episode.title,
+      summary:
+        "This episode explores podcast production and remote recording workflows.",
+      bulletPoints: [
+        "Introduction to podcast production",
+        "Remote recording techniques",
+        "Improving audio quality",
+      ],
+    });
+
+    setShowNote(created);
+
+    await createAsset({
+      episodeId: episode.id,
+      name: "Episode Show Notes",
+      type: "show-notes",
+      fileName: "show-notes.md",
+      fileSize: JSON.stringify(created).length,
+      mimeType: "text/markdown",
+      url: "#",
+    });
+  }
 
   return (
+ 
     <AppShell>
       {loading ? (
         <p>Loading editor...</p>
@@ -172,6 +205,42 @@ export default function EpisodeEditorPage() {
                     </p>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+                    <div className="mt-8 rounded-xl bg-white p-6 shadow">
+            <h2 className="text-xl font-bold">
+              Show Notes
+            </h2>
+
+            {!showNote ? (
+              <>
+                <p className="mt-4 text-slate-600">
+                  Generate show notes from this episode.
+                </p>
+
+                <button
+                  onClick={generateShowNotes}
+                  className="mt-6 rounded-lg bg-purple-600 px-5 py-3 font-semibold text-white"
+                >
+                  Generate Show Notes
+                </button>
+              </>
+            ) : (
+              <div className="mt-6">
+                <h3 className="font-bold">
+                  {showNote.title}
+                </h3>
+
+                <p className="mt-3 text-slate-600">
+                  {showNote.summary}
+                </p>
+
+                <ul className="mt-4 list-disc space-y-2 pl-6">
+                  {showNote.bulletPoints.map((point) => (
+                    <li key={point}>{point}</li>
+                  ))}
+                </ul>
               </div>
             )}
           </div>
