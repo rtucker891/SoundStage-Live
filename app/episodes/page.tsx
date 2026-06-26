@@ -6,19 +6,67 @@ import { useEffect, useState } from "react";
 import AppShell from "@/components/AppShell";
 import CreateEpisodeForm from "@/components/episodes/CreateEpisodeForm";
 
-import { getEpisodes } from "@/lib/api";
+import {
+  getAssets,
+  getEpisodes,
+  getShowNotes,
+  getTranscripts,
+} from "@/lib/api";
 
 import type { Episode } from "@/types/episode";
+import type { Asset } from "@/types/asset";
+import type { Transcript } from "@/types/transcript";
+import type { ShowNote } from "@/types/show-note";
 
 export default function EpisodesPage() {
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [loading, setLoading] = useState(true);
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [transcripts, setTranscripts] = useState<Transcript[]>([]);
+  const [showNotes, setShowNotes] = useState<ShowNote[]>([]);
 
   useEffect(() => {
-    getEpisodes()
-      .then((data) => setEpisodes(data))
-      .finally(() => setLoading(false));
-  }, []);
+  async function load() {
+    const episodeData = await getEpisodes();
+    const assetData = await getAssets();
+    const transcriptData = await getTranscripts();
+    const showNoteData = await getShowNotes();
+
+    setEpisodes(episodeData);
+    setAssets(assetData);
+    setTranscripts(transcriptData);
+    setShowNotes(showNoteData);
+
+    setLoading(false);
+  }
+
+  load();
+}, []);
+  function getProductionStatus(episode: Episode) {
+    const hasRecording = assets.some(
+      (asset) =>
+        asset.episodeId === episode.id &&
+        asset.type === "recording"
+    );
+
+    const hasTranscript = transcripts.some(
+      (transcript) =>
+        transcript.episodeId === episode.id
+    );
+
+    const hasShowNotes = showNotes.some(
+      (note) => note.episodeId === episode.id
+    );
+
+    const isPublished = episode.status === "Published";
+
+    return {
+      hasRecording,
+      hasTranscript,
+      hasShowNotes,
+      isPublished,
+    };
+  }
 
   return (
     <AppShell>
@@ -42,11 +90,12 @@ export default function EpisodesPage() {
             <table className="w-full text-left">
               <thead className="border-b border-slate-200 text-slate-500">
                 <tr>
-                  <th className="pb-4">Episode</th>
-                  <th className="pb-4">Show</th>
-                  <th className="pb-4">Status</th>
-                  <th className="pb-4">Guest</th>
-                </tr>
+  <th className="pb-4">Episode</th>
+  <th className="pb-4">Show</th>
+  <th className="pb-4">Status</th>
+  <th className="pb-4">Guest</th>
+  <th className="pb-4">Production</th>
+</tr>
               </thead>
 
               <tbody>
@@ -73,6 +122,32 @@ export default function EpisodesPage() {
                     </td>
 
                     <td className="py-4">{episode.guest}</td>
+                  <td className="py-4">
+  {(() => {
+    const production =
+      getProductionStatus(episode);
+
+    return (
+      <div className="text-xs space-y-1">
+        <div>
+          {production.hasRecording ? "✓" : "○"} Recording
+        </div>
+
+        <div>
+          {production.hasTranscript ? "✓" : "○"} Transcript
+        </div>
+
+        <div>
+          {production.hasShowNotes ? "✓" : "○"} Show Notes
+        </div>
+
+        <div>
+          {production.isPublished ? "✓" : "○"} Published
+        </div>
+      </div>
+    );
+  })()}
+</td>  
                   </tr>
                 ))}
               </tbody>
