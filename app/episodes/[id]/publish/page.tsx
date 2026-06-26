@@ -1,5 +1,6 @@
 "use client";
 
+import EpisodeNavigation from "@/components/episodes/EpisodeNavigation";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
@@ -56,11 +57,12 @@ export default function EpisodePublishPage() {
       ...episode,
       status: "Published",
     });
+
     setPublishedMessage(
-  releaseDate
-    ? `Episode published for ${releaseDate}.`
-    : "Episode published successfully."
-);
+      releaseDate
+        ? `Episode published for ${releaseDate}.`
+        : "Episode published successfully."
+    );
   }
 
   return (
@@ -75,6 +77,10 @@ export default function EpisodePublishPage() {
         </p>
       ) : (
         <>
+          <EpisodeNavigation
+            episodeId={episode.id}
+          />
+
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold">
@@ -137,31 +143,31 @@ export default function EpisodePublishPage() {
                 Release
               </h2>
 
-             <p className="mt-2 text-slate-600">
-  Choose a release date and publish when ready.
-</p>
+              <p className="mt-2 text-slate-600">
+                Choose a release date and publish when ready.
+              </p>
 
-<input
-  type="date"
-  value={releaseDate}
-  onChange={(event) =>
-    setReleaseDate(event.target.value)
-  }
-  className="mt-4 w-full rounded-lg border border-slate-200 p-3"
-/>
+              <input
+                type="date"
+                value={releaseDate}
+                onChange={(event) =>
+                  setReleaseDate(event.target.value)
+                }
+                className="mt-4 w-full rounded-lg border border-slate-200 p-3"
+              />
 
-<button
-  onClick={handlePublish}
-  className="mt-6 w-full rounded-lg bg-purple-600 px-5 py-3 font-semibold text-white"
->
-  Publish Episode
-</button>
-{publishedMessage && (
-  <p className="mt-4 text-sm font-semibold text-green-600">
-    {publishedMessage}
-  </p>
-)}
-            
+              <button
+                onClick={handlePublish}
+                className="mt-6 w-full rounded-lg bg-purple-600 px-5 py-3 font-semibold text-white"
+              >
+                Publish Episode
+              </button>
+
+              {publishedMessage && (
+                <p className="mt-4 text-sm font-semibold text-green-600">
+                  {publishedMessage}
+                </p>
+              )}
             </div>
           </div>
         </>

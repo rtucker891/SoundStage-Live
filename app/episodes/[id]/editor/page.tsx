@@ -1,5 +1,6 @@
 "use client";
 
+import EpisodeNavigation from "@/components/episodes/EpisodeNavigation";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
@@ -147,8 +148,12 @@ export default function EpisodeEditorPage() {
       ) : !episode ? (
         <p>Episode not found.</p>
       ) : (
-        <>
-          <div className="flex items-center justify-between">
+       <>
+  <EpisodeNavigation
+    episodeId={episode.id}
+  />
+
+  <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold">
                 Editor: {episode.title}

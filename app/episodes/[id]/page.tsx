@@ -1,5 +1,6 @@
 "use client";
 
+import EpisodeNavigation from "@/components/episodes/EpisodeNavigation";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
@@ -37,7 +38,13 @@ export default function EpisodeDetailsPage() {
         <p className="text-red-500">Episode not found.</p>
       ) : (
         <>
-          <div className="flex items-center justify-between">
+
+ 
+    <EpisodeNavigation
+      episodeId={episode.id}
+    />
+
+    <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold">
                 {episode.title}
@@ -70,6 +77,7 @@ export default function EpisodeDetailsPage() {
               </p>
             </div>
             <Link
+
   href={`/episodes/${episode.id}/assets`}
   className="rounded-xl bg-white p-6 shadow hover:shadow-md"
 >
@@ -79,11 +87,11 @@ export default function EpisodeDetailsPage() {
     Manage recordings, transcripts, artwork, and files.
   </p>
 </Link>
-
-            <Link
-              href={`/episodes/${episode.id}/studio`}
-              className="rounded-xl bg-white p-6 shadow hover:shadow-md"
-            >
+            
+             <Link
+  href={`/episodes/${episode.id}/studio`}
+  className="rounded-xl bg-white p-6 shadow hover:shadow-md"
+>
               <h2 className="text-xl font-bold">Studio</h2>
 
               <p className="mt-2 text-sm text-slate-600">
