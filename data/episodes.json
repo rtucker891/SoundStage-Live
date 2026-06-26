@@ -33,5 +33,19 @@
     "show": "Creator Spotlight",
     "status": "Published",
     "guest": "Olivia Martinez"
+  },
+  {
+    "id": "episode-1782480909135",
+    "title": "Podcast stories",
+    "show": "Creator Spotlight",
+    "status": "Editing",
+    "guest": "Rawle Tucker"
+  },
+  {
+    "id": "episode-1782482341975",
+    "title": "Chinese AI",
+    "show": "Creator Spotlight",
+    "status": "Editing",
+    "guest": "Jason Lowe"
   }
 ]

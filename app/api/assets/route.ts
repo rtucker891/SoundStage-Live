@@ -1,13 +1,36 @@
 import { NextResponse } from "next/server";
+import fs from "fs/promises";
+import path from "path";
 
-import { assets } from "@/lib/assets";
+const ASSETS_FILE = path.join(
+  process.cwd(),
+  "data",
+  "assets.json"
+);
+
+async function readAssets() {
+  const file = await fs.readFile(ASSETS_FILE, "utf-8");
+
+  return JSON.parse(file);
+}
+
+async function writeAssets(assets: any[]) {
+  await fs.writeFile(
+    ASSETS_FILE,
+    JSON.stringify(assets, null, 2)
+  );
+}
 
 export async function GET() {
+  const assets = await readAssets();
+
   return NextResponse.json(assets);
 }
 
 export async function POST(request: Request) {
   const body = await request.json();
+
+  const assets = await readAssets();
 
   const asset = {
     id: `asset-${Date.now()}`,
@@ -22,6 +45,8 @@ export async function POST(request: Request) {
   };
 
   assets.push(asset);
+
+  await writeAssets(assets);
 
   return NextResponse.json(asset, {
     status: 201,
@@ -40,18 +65,20 @@ export async function DELETE(request: Request) {
     );
   }
 
-  const index = assets.findIndex(
-    (asset) => asset.id === id
+  const assets = await readAssets();
+
+  const filteredAssets = assets.filter(
+    (asset: any) => asset.id !== id
   );
 
-  if (index === -1) {
+  if (filteredAssets.length === assets.length) {
     return NextResponse.json(
       { message: "Asset not found" },
       { status: 404 }
     );
   }
 
-  assets.splice(index, 1);
+  await writeAssets(filteredAssets);
 
   return NextResponse.json({
     success: true,

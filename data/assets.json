@@ -1,0 +1,35 @@
+[
+  {
+    "id": "asset-1782482460803",
+    "episodeId": "episode-1782482341975",
+    "name": "Recording 10:01:00 AM",
+    "type": "recording",
+    "fileName": "recording.webm",
+    "fileSize": 1637764,
+    "mimeType": "audio/webm",
+    "createdAt": "2026-06-26T14:01:00.803Z",
+    "url": "blob:http://localhost:3000/b5756028-5c7d-4081-b9be-b4ed54e77948"
+  },
+  {
+    "id": "asset-1782483045928",
+    "episodeId": "episode-1782482341975",
+    "name": "Episode Show Notes",
+    "type": "show-notes",
+    "fileName": "show-notes.md",
+    "fileSize": 323,
+    "mimeType": "text/markdown",
+    "createdAt": "2026-06-26T14:10:45.928Z",
+    "url": "#"
+  },
+  {
+    "id": "asset-1782483224369",
+    "episodeId": "episode-1782482341975",
+    "name": "Episode Transcript",
+    "type": "transcript",
+    "fileName": "transcript.json",
+    "fileSize": 443,
+    "mimeType": "application/json",
+    "createdAt": "2026-06-26T14:13:44.369Z",
+    "url": "#"
+  }
+]
