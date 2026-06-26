@@ -1,156 +1,103 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 
 import AppShell from "@/components/AppShell";
 import {
   createAsset,
-  createRecording,
   getEpisodes,
   updateEpisodeStatus,
 } from "@/lib/api";
 
 import type { Episode } from "@/types/episode";
 
-type SavedRecording = {
-  id: string;
-  name: string;
-  duration: number;
-  audioUrl: string;
-};
-
 export default function EpisodeStudioPage() {
   const params = useParams();
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
   const [episode, setEpisode] = useState<Episode | null>(null);
   const [loading, setLoading] = useState(true);
   const [recording, setRecording] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [savedRecordings, setSavedRecordings] = useState<SavedRecording[]>(
-    []
-  );
-  const [micStatus, setMicStatus] = useState("Not tested");
+  const [audioUrl, setAudioUrl] = useState("");
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
-    getEpisodes()
-      .then(async (episodes) => {
-        const selectedEpisode = episodes.find(
-          (item) => item.id === params.id
-        );
+    async function load() {
+      const episodes = await getEpisodes();
 
-        if (
-          selectedEpisode &&
-          selectedEpisode.status === "Planning"
-        ) {
-          await updateEpisodeStatus(
-            selectedEpisode.id,
-            "Recording"
-          );
+      const selectedEpisode = episodes.find(
+        (item) => item.id === params.id
+      );
 
-          selectedEpisode.status = "Recording";
-        }
+      setEpisode(selectedEpisode || null);
+      setLoading(false);
+    }
 
-        setEpisode(selectedEpisode || null);
-      })
-      .finally(() => setLoading(false));
+    load();
   }, [params.id]);
 
-  async function testMicrophone() {
-    try {
-      const stream =
-        await navigator.mediaDevices.getUserMedia({
-          audio: true,
-        });
-
-      stream.getTracks().forEach((track) => track.stop());
-
-      setMicStatus("Microphone ready");
-    } catch {
-      setMicStatus("Microphone access denied");
-    }
-  }
-
   async function startRecording() {
-    const stream =
-      await navigator.mediaDevices.getUserMedia({
-        audio: true,
-      });
+    if (!episode) return;
 
-    audioChunksRef.current = [];
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+    });
+
+    chunksRef.current = [];
 
     const mediaRecorder = new MediaRecorder(stream);
-    mediaRecorderRef.current = mediaRecorder;
 
     mediaRecorder.ondataavailable = (event) => {
-      audioChunksRef.current.push(event.data);
+      if (event.data.size > 0) {
+        chunksRef.current.push(event.data);
+      }
     };
 
     mediaRecorder.onstop = async () => {
-      const audioBlob = new Blob(audioChunksRef.current, {
+      const blob = new Blob(chunksRef.current, {
         type: "audio/webm",
       });
 
-      const url = URL.createObjectURL(audioBlob);
+      const url = URL.createObjectURL(blob);
 
       setAudioUrl(url);
 
- if (episode) {
-  const recordingName = `Recording ${new Date().toLocaleTimeString()}`;
+      await createAsset({
+        episodeId: episode.id,
+        name: `Recording ${new Date().toLocaleTimeString()}`,
+        type: "recording",
+        fileName: `recording-${Date.now()}.webm`,
+        fileSize: blob.size,
+        mimeType: "audio/webm",
+        url,
+      });
 
-  const savedRecording = await createRecording({
-    episodeId: episode.id,
-    name: recordingName,
-    duration: recordingTime,
-    audioUrl: url,
-  });
+      await updateEpisodeStatus(episode.id, "Recording");
 
-  await createAsset({
-    episodeId: episode.id,
-    name: recordingName,
-    type: "recording",
-    fileName: "recording.webm",
-    fileSize: audioBlob.size,
-    mimeType: "audio/webm",
-    url,
-  });
+      setEpisode({
+        ...episode,
+        status: "Recording",
+      });
 
-  setSavedRecordings((current) => [
-    ...current,
-    savedRecording,
-  ]);
-}
-
-      stream.getTracks().forEach((track) => track.stop());
+      setMessage("Recording saved as an asset.");
     };
 
+    mediaRecorderRef.current = mediaRecorder;
     mediaRecorder.start();
 
     setRecording(true);
-    setRecordingTime(0);
-
-    timerRef.current = setInterval(() => {
-      setRecordingTime((time) => time + 1);
-    }, 1000);
+    setMessage("Recording started...");
   }
 
   function stopRecording() {
     mediaRecorderRef.current?.stop();
-
     setRecording(false);
-
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
+    setMessage("Recording stopped.");
   }
-
-  const minutes = Math.floor(recordingTime / 60);
-  const seconds = recordingTime % 60;
 
   return (
     <AppShell>
@@ -171,124 +118,88 @@ export default function EpisodeStudioPage() {
               </p>
             </div>
 
-            <span className="rounded-full bg-green-100 px-4 py-2 text-sm font-semibold text-green-700">
-              {episode.status}
-            </span>
+            <div className="flex items-center gap-3">
+  <Link
+    href={`/episodes/${episode.id}/assets`}
+    className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+  >
+    View Assets
+  </Link>
+
+  <span className="rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-700">
+    {episode.status}
+  </span>
+</div>
           </div>
 
           <div className="mt-8 grid gap-6 lg:grid-cols-3">
-            <div className="rounded-xl bg-white p-6 shadow">
-              <h2 className="text-xl font-bold">
-                Microphone Check
+            <div className="rounded-xl bg-white p-6 shadow lg:col-span-2">
+              <h2 className="text-2xl font-bold">
+                Recording Studio
               </h2>
 
               <p className="mt-2 text-slate-600">
-                Verify microphone access before recording.
+                Record audio for this episode directly in the browser.
               </p>
 
-              <p className="mt-4 text-sm font-semibold text-slate-500">
-                Status: {micStatus}
-              </p>
+              <div className="mt-6 flex gap-4">
+                {!recording ? (
+                  <button
+                    onClick={startRecording}
+                    className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white"
+                  >
+                    Start Recording
+                  </button>
+                ) : (
+                  <button
+                    onClick={stopRecording}
+                    className="rounded-lg bg-red-600 px-5 py-3 font-semibold text-white"
+                  >
+                    Stop Recording
+                  </button>
+                )}
+              </div>
 
-              <button
-                onClick={testMicrophone}
-                className="mt-6 rounded-lg bg-slate-950 px-5 py-3 font-semibold text-white"
-              >
-                Test Microphone
-              </button>
-            </div>
+              {message && (
+                <p className="mt-4 text-sm font-semibold text-slate-600">
+                  {message}
+                </p>
+              )}
 
-            <div className="rounded-xl bg-white p-6 shadow">
-              <h2 className="text-xl font-bold">Guest Room</h2>
+              {audioUrl && (
+                <div className="mt-6">
+                  <h3 className="font-bold">Latest Recording</h3>
 
-              <p className="mt-2 text-slate-600">
-                Guest: {episode.guest}
-              </p>
+                  <audio
+                    controls
+                    src={audioUrl}
+                    className="mt-3 w-full"
+                  />
 
-              <button className="mt-6 rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white">
-                Invite Guest
-              </button>
-            </div>
-
-            <div className="rounded-xl bg-white p-6 shadow">
-              <h2 className="text-xl font-bold">Recording</h2>
-
-              <p className="mt-2 text-slate-600">
-                Recording timer:{" "}
-                {String(minutes).padStart(2, "0")}:
-                {String(seconds).padStart(2, "0")}
-              </p>
-
-              {!recording ? (
-                <button
-                  onClick={startRecording}
-                  className="mt-6 rounded-lg bg-red-600 px-5 py-3 font-semibold text-white"
-                >
-                  Start Recording
-                </button>
-              ) : (
-                <button
-                  onClick={stopRecording}
-                  className="mt-6 rounded-lg bg-slate-950 px-5 py-3 font-semibold text-white"
-                >
-                  Stop Recording
-                </button>
+                  <a
+                    href={audioUrl}
+                    download="recording.webm"
+                    className="mt-4 inline-block rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+                  >
+                    Download Recording
+                  </a>
+                </div>
               )}
             </div>
-          </div>
 
-          {audioUrl && (
-            <div className="mt-8 rounded-xl bg-white p-6 shadow">
+            <div className="rounded-xl bg-white p-6 shadow">
               <h2 className="text-xl font-bold">
-                Recording Preview
+                Studio Checklist
               </h2>
 
-              <p className="mt-2 text-slate-600">
-                Listen to your recording.
-              </p>
-
-              <audio
-                controls
-                src={audioUrl}
-                className="mt-6 w-full"
-              />
-            </div>
-          )}
-
-          {savedRecordings.length > 0 && (
-            <div className="mt-8 rounded-xl bg-white p-6 shadow">
-              <h2 className="text-xl font-bold">Audio Library</h2>
-
-              <p className="mt-2 text-slate-600">
-                Saved recordings for this episode.
-              </p>
-
-              <div className="mt-6 space-y-4">
-                {savedRecordings.map((recording) => (
-                  <div
-                    key={recording.id}
-                    className="rounded-lg border border-slate-200 p-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      <p className="font-semibold">
-                        {recording.name}
-                      </p>
-
-                      <p className="text-sm text-slate-500">
-                        {recording.duration} sec
-                      </p>
-                    </div>
-
-                    <audio
-                      controls
-                      src={recording.audioUrl}
-                      className="mt-4 w-full"
-                    />
-                  </div>
-                ))}
+              <div className="mt-4 space-y-3 text-sm text-slate-600">
+                <p>✓ Microphone access required</p>
+                <p>✓ Recording saves as an asset</p>
+                <p>✓ Recording can be replayed</p>
+                <p>✓ Recording can be downloaded</p>
               </div>
             </div>
-          )}
+          </div>
         </>
       )}
     </AppShell>

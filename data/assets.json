@@ -42,5 +42,16 @@
     "mimeType": "text/markdown",
     "createdAt": "2026-06-26T14:20:25.403Z",
     "url": "#"
+  },
+  {
+    "id": "asset-1782488374384",
+    "episodeId": "episode-1782482341975",
+    "name": "Recording 11:39:34 AM",
+    "type": "recording",
+    "fileName": "recording-1782488374344.webm",
+    "fileSize": 59222,
+    "mimeType": "audio/webm",
+    "createdAt": "2026-06-26T15:39:34.384Z",
+    "url": "blob:http://localhost:3000/fab8d15e-756a-46f9-a59f-51b5a00bba54"
   }
 ]
