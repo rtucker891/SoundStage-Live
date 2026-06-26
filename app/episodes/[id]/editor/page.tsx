@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 
 import AppShell from "@/components/AppShell";
 import {
+  createAsset,
   createTranscript,
   getEpisodes,
   getTranscripts,
@@ -90,6 +91,16 @@ export default function EpisodeEditorPage() {
           text: "Today we're discussing podcast production.",
         },
       ],
+    });
+
+    await createAsset({
+      episodeId: episode.id,
+      name: "Episode Transcript",
+      type: "transcript",
+      fileName: "transcript.json",
+      fileSize: JSON.stringify(created).length,
+      mimeType: "application/json",
+      url: "#",
     });
 
     setTranscript(created);

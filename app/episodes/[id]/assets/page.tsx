@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import {
   createAsset,
+  deleteAsset,
   getAssets,
   getEpisodes,
 } from "@/lib/api";
@@ -60,6 +61,14 @@ export default function EpisodeAssetsPage() {
     setAssets((current) => [...current, asset]);
   }
 
+  async function handleDeleteAsset(id: string) {
+    await deleteAsset(id);
+
+    setAssets((current) =>
+      current.filter((asset) => asset.id !== id)
+    );
+  }
+
   return (
     <AppShell>
       {loading ? (
@@ -98,41 +107,49 @@ export default function EpisodeAssetsPage() {
               </p>
             ) : (
               <div className="mt-6 space-y-4">
-               {assets.map((asset) => (
-  <div
-    key={asset.id}
-    className="rounded-lg border border-slate-200 p-4"
-  >
-    <div className="flex items-center justify-between">
-      <div>
-        <h3 className="font-semibold">
-          {asset.name}
-        </h3>
+                {assets.map((asset) => (
+                  <div
+                    key={asset.id}
+                    className="rounded-lg border border-slate-200 p-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold">
+                          {asset.name}
+                        </h3>
 
-        <p className="text-sm text-slate-500">
-          {asset.type}
-        </p>
-      </div>
+                        <p className="text-sm text-slate-500">
+                          {asset.type}
+                        </p>
+                      </div>
 
-      <span className="rounded-full bg-slate-100 px-3 py-1 text-sm">
-        {asset.fileName}
-      </span>
-    </div>
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-sm">
+                        {asset.fileName}
+                      </span>
+                    </div>
 
-    {asset.type === "recording" && (
-      <audio
-        controls
-        src={asset.url}
-        className="mt-4 w-full"
-      />
-    )}
+                    {asset.type === "recording" && (
+                      <audio
+                        controls
+                        src={asset.url}
+                        className="mt-4 w-full"
+                      />
+                    )}
 
-    <div className="mt-4 text-sm text-slate-500">
-      {(asset.fileSize / 1024).toFixed(1)} KB
-    </div>
-  </div>
-))}
-                
+                    <div className="mt-4 text-sm text-slate-500">
+                      {(asset.fileSize / 1024).toFixed(1)} KB
+                    </div>
+
+                    <button
+                      onClick={() =>
+                        handleDeleteAsset(asset.id)
+                      }
+                      className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white"
+                    >
+                      Delete Asset
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
           </div>
