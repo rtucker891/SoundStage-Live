@@ -113,32 +113,46 @@ export default function EpisodeEditorPage() {
   
 
   async function generateShowNotes() {
-    if (!episode) return;
+  if (!episode || !transcript) return;
 
-    const created = await createShowNote({
-      episodeId: episode.id,
-      title: episode.title,
-      summary:
-        "This episode explores podcast production and remote recording workflows.",
-      bulletPoints: [
-        "Introduction to podcast production",
-        "Remote recording techniques",
-        "Improving audio quality",
-      ],
-    });
+  const transcriptText = transcript.segments
+    .map(
+      (segment) =>
+        `${segment.speaker}: ${segment.text}`
+    )
+    .join("\n");
 
-    setShowNote(created);
+  const response = await fetch("/api/ai/show-notes", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      transcript: transcriptText,
+    }),
+  });
 
-    await createAsset({
-      episodeId: episode.id,
-      name: "Episode Show Notes",
-      type: "show-notes",
-      fileName: "show-notes.md",
-      fileSize: JSON.stringify(created).length,
-      mimeType: "text/markdown",
-      url: "#",
-    });
-  }
+  const data = await response.json();
+
+  const created = await createShowNote({
+    episodeId: episode.id,
+    title: episode.title,
+    summary: data.showNotes,
+    bulletPoints: [],
+  });
+
+  setShowNote(created);
+
+  await createAsset({
+    episodeId: episode.id,
+    name: "AI Show Notes",
+    type: "show-notes",
+    fileName: "ai-show-notes.md",
+    fileSize: JSON.stringify(created).length,
+    mimeType: "text/markdown",
+    url: "#",
+  });
+}
 
   return (
  

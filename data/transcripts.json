@@ -26,5 +26,33 @@
         "text": "Today we're discussing podcast production."
       }
     ]
+  },
+  {
+    "id": "transcript-1782495618221",
+    "episodeId": "episode-1782495533905",
+    "createdAt": "2026-06-26T17:40:18.221Z",
+    "segments": [
+      {
+        "id": "1",
+        "speaker": "Host",
+        "startTime": 0,
+        "endTime": 12,
+        "text": "Welcome to another episode of SoundStage Live."
+      },
+      {
+        "id": "2",
+        "speaker": "Guest",
+        "startTime": 13,
+        "endTime": 28,
+        "text": "Thank you for having me on the show."
+      },
+      {
+        "id": "3",
+        "speaker": "Host",
+        "startTime": 29,
+        "endTime": 48,
+        "text": "Today we're discussing podcast production."
+      }
+    ]
   }
 ]
