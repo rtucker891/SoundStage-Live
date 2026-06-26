@@ -31,5 +31,16 @@
     "mimeType": "application/json",
     "createdAt": "2026-06-26T14:13:44.369Z",
     "url": "#"
+  },
+  {
+    "id": "asset-1782483625403",
+    "episodeId": "episode-1782482341975",
+    "name": "Episode Show Notes",
+    "type": "show-notes",
+    "fileName": "show-notes.md",
+    "fileSize": 323,
+    "mimeType": "text/markdown",
+    "createdAt": "2026-06-26T14:20:25.403Z",
+    "url": "#"
   }
 ]
