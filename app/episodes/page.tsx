@@ -29,11 +29,7 @@ export default function EpisodesPage() {
           <p className="mt-2 text-slate-600">
             Plan, record, edit, and publish your episodes.
           </p>
-        </div>
-
-        <button className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white">
-          New Episode
-        </button>
+           </div>
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-3">
