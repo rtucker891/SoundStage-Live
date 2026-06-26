@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 
 import AppShell from "@/components/AppShell";
 import {
+  createAsset,
   createRecording,
   getEpisodes,
   updateEpisodeStatus,
@@ -99,19 +100,31 @@ export default function EpisodeStudioPage() {
 
       setAudioUrl(url);
 
-      if (episode) {
-        const savedRecording = await createRecording({
-          episodeId: episode.id,
-          name: `Recording ${new Date().toLocaleTimeString()}`,
-          duration: recordingTime,
-          audioUrl: url,
-        });
+ if (episode) {
+  const recordingName = `Recording ${new Date().toLocaleTimeString()}`;
 
-        setSavedRecordings((current) => [
-          ...current,
-          savedRecording,
-        ]);
-      }
+  const savedRecording = await createRecording({
+    episodeId: episode.id,
+    name: recordingName,
+    duration: recordingTime,
+    audioUrl: url,
+  });
+
+  await createAsset({
+    episodeId: episode.id,
+    name: recordingName,
+    type: "recording",
+    fileName: "recording.webm",
+    fileSize: audioBlob.size,
+    mimeType: "audio/webm",
+    url,
+  });
+
+  setSavedRecordings((current) => [
+    ...current,
+    savedRecording,
+  ]);
+}
 
       stream.getTracks().forEach((track) => track.stop());
     };

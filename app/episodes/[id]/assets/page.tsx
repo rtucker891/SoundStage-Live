@@ -98,28 +98,41 @@ export default function EpisodeAssetsPage() {
               </p>
             ) : (
               <div className="mt-6 space-y-4">
-                {assets.map((asset) => (
-                  <div
-                    key={asset.id}
-                    className="rounded-lg border border-slate-200 p-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-semibold">
-                          {asset.name}
-                        </h3>
+               {assets.map((asset) => (
+  <div
+    key={asset.id}
+    className="rounded-lg border border-slate-200 p-4"
+  >
+    <div className="flex items-center justify-between">
+      <div>
+        <h3 className="font-semibold">
+          {asset.name}
+        </h3>
 
-                        <p className="text-sm text-slate-500">
-                          {asset.type}
-                        </p>
-                      </div>
+        <p className="text-sm text-slate-500">
+          {asset.type}
+        </p>
+      </div>
 
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-sm">
-                        {asset.fileName}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+      <span className="rounded-full bg-slate-100 px-3 py-1 text-sm">
+        {asset.fileName}
+      </span>
+    </div>
+
+    {asset.type === "recording" && (
+      <audio
+        controls
+        src={asset.url}
+        className="mt-4 w-full"
+      />
+    )}
+
+    <div className="mt-4 text-sm text-slate-500">
+      {(asset.fileSize / 1024).toFixed(1)} KB
+    </div>
+  </div>
+))}
+                
               </div>
             )}
           </div>
