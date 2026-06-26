@@ -135,6 +135,14 @@ export default function EpisodeAssetsPage() {
                         className="mt-4 w-full"
                       />
                     )}
+                    {asset.type === "transcript" && (
+  <a
+    href={`/episodes/${episode?.id}/editor`}
+    className="mt-4 inline-block rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white"
+  >
+    View Transcript
+  </a>
+)}
 
                     <div className="mt-4 text-sm text-slate-500">
                       {(asset.fileSize / 1024).toFixed(1)} KB
