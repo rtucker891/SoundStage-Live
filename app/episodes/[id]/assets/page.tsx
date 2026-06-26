@@ -128,13 +128,23 @@ export default function EpisodeAssetsPage() {
                       </span>
                     </div>
 
-                    {asset.type === "recording" && (
-                      <audio
-                        controls
-                        src={asset.url}
-                        className="mt-4 w-full"
-                      />
-                    )}
+                  {asset.type === "recording" && (
+  <>
+    <audio
+      controls
+      src={asset.url}
+      className="mt-4 w-full"
+    />
+
+    <a
+      href={asset.url}
+      download={asset.fileName}
+      className="mt-4 inline-block rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+    >
+      Download Recording
+    </a>
+  </>
+)}
                     {asset.type === "transcript" && (
   <a
     href={`/episodes/${episode?.id}/editor`}

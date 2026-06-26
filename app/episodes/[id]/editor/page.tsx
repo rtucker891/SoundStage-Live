@@ -172,7 +172,7 @@ export default function EpisodeEditorPage() {
             {!transcript ? (
               <>
                 <p className="mt-4 text-slate-600">
-                  No transcript has been generated yet.
+                  No sample transcript has been generated yet.
                 </p>
 
                 <button
@@ -182,7 +182,7 @@ export default function EpisodeEditorPage() {
                 >
                   {generating
                     ? "Generating..."
-                    : "Generate Transcript"}
+                   : "Generate Sample Transcript"}
                 </button>
               </>
             ) : (
