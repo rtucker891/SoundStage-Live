@@ -44,13 +44,23 @@ export default function ShowDetailsPage() {
         <p className="text-red-500">Show not found.</p>
       ) : (
         <>
-          <div>
-            <h1 className="text-3xl font-bold">{show.title}</h1>
+         <div className="flex items-center justify-between gap-6">
+  <div>
+    <h1 className="text-3xl font-bold">{show.title}</h1>
 
-            <p className="mt-2 text-slate-600">
-              {show.description}
-            </p>
-          </div>
+    <p className="mt-2 text-slate-600">
+      {show.description}
+    </p>
+  </div>
+
+  <a
+    href={`/public-shows/${show.id}`}
+    target="_blank"
+    className="rounded-lg bg-slate-900 px-5 py-3 font-semibold text-white"
+  >
+    View Public Show Page
+  </a>
+</div>
 
           <div className="mt-8 rounded-xl bg-white p-6 shadow">
             <h2 className="text-2xl font-bold">

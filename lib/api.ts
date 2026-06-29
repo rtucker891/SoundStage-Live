@@ -507,6 +507,8 @@ export async function getShowNotes(): Promise<ShowNote[]> {
     bulletPoints: note.bullet_points || [],
   }));
 }
+
+
 export async function createShowNote(data: {
   episodeId: string;
   title: string;
@@ -545,7 +547,69 @@ export async function createShowNote(data: {
     bulletPoints: note.bullet_points || [],
   };
 }
-export async function uploadFileToStorage(file: File, folder: string) {
+
+export async function updateEpisodeCoverArt(
+  id: string,
+  coverArtUrl: string
+) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Not signed in");
+  }
+
+  const { data, error } = await supabase
+    .from("episodes")
+    .update({
+      cover_art_url: coverArtUrl,
+    })
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+export async function updateShowCoverArt(
+  id: string,
+  coverArtUrl: string
+) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Not signed in");
+  }
+
+  const { data, error } = await supabase
+    .from("shows")
+    .update({
+      cover_art_url: coverArtUrl,
+    })
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+export async function uploadFileToStorage(
+  file: File,
+  folder: string
+) {
   const {
     data: { user },
   } = await supabase.auth.getUser();

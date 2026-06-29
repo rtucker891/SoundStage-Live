@@ -261,11 +261,21 @@ export default function EpisodePublishPage() {
                 Publish Episode
               </button>
 
-              {publishedMessage && (
-                <p className="mt-4 rounded-lg bg-green-100 p-3 text-sm font-semibold text-green-700">
-                  {publishedMessage}
-                </p>
-              )}
+             {publishedMessage && (
+  <div className="mt-4 rounded-lg bg-green-100 p-4">
+    <p className="text-sm font-semibold text-green-700">
+      {publishedMessage}
+    </p>
+
+    <a
+      href={`/listen/${episode.id}`}
+      target="_blank"
+      className="mt-3 inline-block rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+    >
+      View Public Page
+    </a>
+  </div>
+)}
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow">

@@ -15,6 +15,8 @@ import {
   getTranscripts,
   updateEpisodeStatus,
   updateTranscript,
+  uploadFileToStorage,
+updateEpisodeCoverArt,
 } from "@/lib/api";
 
 import type { Asset } from "@/types/asset";
@@ -306,7 +308,37 @@ export default function EpisodeEditorPage() {
       url: data.imageUrl,
     });
   }
+async function uploadCoverArt(
+  event: React.ChangeEvent<HTMLInputElement>
+) {
+  if (!episode) return;
 
+  const file = event.target.files?.[0];
+
+  if (!file) return;
+
+  const uploaded = await uploadFileToStorage(
+    file,
+    `episodes/${episode.id}/artwork`
+  );
+
+  await updateEpisodeCoverArt(
+    episode.id,
+    uploaded.url
+  );
+
+  setCoverArtUrl(uploaded.url);
+
+  await createAsset({
+    episodeId: episode.id,
+    name: "Cover Art",
+    type: "artwork",
+    fileName: file.name,
+    fileSize: file.size,
+    mimeType: file.type,
+    url: uploaded.url,
+  });
+}
   return (
     <AppShell>
       {loading ? (
@@ -633,7 +665,12 @@ export default function EpisodeEditorPage() {
               placeholder="Describe the cover art..."
               className="mt-4 w-full rounded-lg border border-slate-200 p-3"
             />
-
+<input
+  type="file"
+  accept="image/png,image/jpeg,image/webp"
+  onChange={uploadCoverArt}
+  className="mt-4 block w-full rounded-lg border border-slate-200 bg-white p-3"
+/>
             <button
               onClick={generateCoverArt}
               className="mt-4 rounded-lg bg-pink-600 px-5 py-3 font-semibold text-white"
