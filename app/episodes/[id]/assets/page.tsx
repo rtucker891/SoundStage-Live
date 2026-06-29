@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 
 import AppShell from "@/components/AppShell";
 import {
-  createAsset,
+  
   deleteAsset,
   getAssets,
   getEpisodes,
@@ -46,21 +46,7 @@ export default function EpisodeAssetsPage() {
     load();
   }, [params.id]);
 
-  async function addSampleAsset() {
-    if (!episode) return;
-
-    const asset = await createAsset({
-      episodeId: episode.id,
-      name: "Sample Recording",
-      type: "recording",
-      fileName: "recording.webm",
-      fileSize: 1250000,
-      mimeType: "audio/webm",
-      url: "#",
-    });
-
-    setAssets((current) => [...current, asset]);
-  }
+  
 
   async function handleDeleteAsset(id: string) {
     await deleteAsset(id);
@@ -78,12 +64,9 @@ export default function EpisodeAssetsPage() {
         <p>Episode not found.</p>
       ) : (
         <>
-        
-  <EpisodeNavigation
-    episodeId={episode.id}
-  />
+          <EpisodeNavigation episodeId={episode.id} />
 
-  <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold">
                 Assets: {episode.title}
@@ -94,12 +77,11 @@ export default function EpisodeAssetsPage() {
               </p>
             </div>
 
-            <button
-              onClick={addSampleAsset}
-              className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white"
-            >
-              Add Sample Asset
-            </button>
+           <span className="rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-700">
+  {assets.length} Assets
+</span>
+            
+             
           </div>
 
           <div className="mt-8 rounded-xl bg-white p-6 shadow">
@@ -134,31 +116,59 @@ export default function EpisodeAssetsPage() {
                       </span>
                     </div>
 
-                  {asset.type === "recording" && (
-  <>
-    <audio
-      controls
-      src={asset.url}
-      className="mt-4 w-full"
-    />
+                    {asset.type === "recording" && (
+                      <>
+                        <audio
+                          controls
+                          src={asset.url}
+                          className="mt-4 w-full"
+                        />
 
-    <a
-      href={asset.url}
-      download={asset.fileName}
-      className="mt-4 inline-block rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
-    >
-      Download Recording
-    </a>
-  </>
-)}
+                        <a
+                          href={asset.url}
+                          download={asset.fileName}
+                          className="mt-4 inline-block rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+                        >
+                          Download Recording
+                        </a>
+                      </>
+                    )}
+
                     {asset.type === "transcript" && (
-  <a
-    href={`/episodes/${episode?.id}/editor`}
-    className="mt-4 inline-block rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white"
-  >
-    View Transcript
-  </a>
-)}
+                      <a
+                     href={`/episodes/${episode.id}/assets/${asset.id}`}
+                        className="mt-4 inline-block rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white"
+                      >
+                        View Transcript
+                      </a>
+                    )}
+
+                    {asset.type === "show-notes" && (
+                      <a
+                    href={`/episodes/${episode.id}/assets/${asset.id}`}
+                        className="mt-4 inline-block rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white"
+                      >
+                        View Show Notes
+                      </a>
+                    )}
+
+                    {asset.type === "episode-description" && (
+                      <a
+                       href={`/episodes/${episode.id}/assets/${asset.id}`}
+                        className="mt-4 inline-block rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white"
+                      >
+                        View Episode Description
+                      </a>
+                    )}
+
+                    {asset.type === "publish-package" && (
+                      <a
+                        href={`/episodes/${episode.id}/assets/${asset.id}`}
+                        className="mt-4 inline-block rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+                      >
+                        View Publish Package
+                      </a>
+                    )}
 
                     <div className="mt-4 text-sm text-slate-500">
                       {(asset.fileSize / 1024).toFixed(1)} KB

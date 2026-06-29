@@ -1,0 +1,230 @@
+import { supabase } from "@/lib/supabaseClient";
+
+import type { ShowNote } from "@/types/show-note";
+import type { Asset } from "@/types/asset";
+import type { Show } from "@/types/show";
+import type { Episode, EpisodeStatus } from "@/types/episode";
+import type { Recording } from "@/types/recording";
+import type { Transcript } from "@/types/transcript";
+
+export async function getShows(): Promise<Show[]> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("shows")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+
+  return data.map((show) => ({
+    id: show.id,
+    title: show.title,
+    description: show.description || "",
+    status: show.status || "Draft",
+    episodes: 0,
+  }));
+}
+
+export async function createShow(data: {
+  title: string;
+  description: string;
+}) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Not signed in");
+  }
+
+  const { data: createdShow, error } = await supabase
+    .from("shows")
+    .insert({
+      user_id: user.id,
+      title: data.title,
+      description: data.description,
+      status: "Draft",
+    })
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  return {
+    id: createdShow.id,
+    title: createdShow.title,
+    description: createdShow.description || "",
+    status: createdShow.status || "Draft",
+    episodes: 0,
+  };
+}
+
+export async function getEpisodes(): Promise<Episode[]> {
+  const response = await fetch("/api/episodes");
+  if (!response.ok) throw new Error("Failed to fetch episodes");
+  return response.json();
+}
+
+export async function createEpisode(data: {
+  title: string;
+  guest: string;
+  show: string;
+}) {
+  const response = await fetch("/api/episodes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) throw new Error("Failed to create episode");
+  return response.json();
+}
+
+export async function updateEpisodeStatus(
+  id: string,
+  status: EpisodeStatus
+) {
+  const response = await fetch("/api/episodes", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, status }),
+  });
+
+  if (!response.ok) throw new Error("Failed to update episode status");
+  return response.json();
+}
+
+export async function updateEpisode(data: {
+  id: string;
+  title: string;
+  guest: string;
+  show: string;
+  status: EpisodeStatus;
+}) {
+  const response = await fetch("/api/episodes", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) throw new Error("Failed to update episode");
+  return response.json();
+}
+
+export async function getRecordings(): Promise<Recording[]> {
+  const response = await fetch("/api/recordings");
+  if (!response.ok) throw new Error("Failed to fetch recordings");
+  return response.json();
+}
+
+export async function createRecording(data: {
+  episodeId: string;
+  name: string;
+  duration: number;
+  audioUrl: string;
+}) {
+  const response = await fetch("/api/recordings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) throw new Error("Failed to create recording");
+  return response.json();
+}
+
+export async function getTranscripts(): Promise<Transcript[]> {
+  const response = await fetch("/api/transcripts");
+  if (!response.ok) throw new Error("Failed to fetch transcripts");
+  return response.json();
+}
+
+export async function createTranscript(data: {
+  episodeId: string;
+  segments: Transcript["segments"];
+}) {
+  const response = await fetch("/api/transcripts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) throw new Error("Failed to create transcript");
+  return response.json();
+}
+
+export async function updateTranscript(data: {
+  id: string;
+  segments: Transcript["segments"];
+}) {
+  const response = await fetch("/api/transcripts", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) throw new Error("Failed to update transcript");
+  return response.json();
+}
+
+export async function getAssets(): Promise<Asset[]> {
+  const response = await fetch("/api/assets");
+  if (!response.ok) throw new Error("Failed to fetch assets");
+  return response.json();
+}
+
+export async function createAsset(data: {
+  episodeId: string;
+  name: string;
+  type: Asset["type"];
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  url: string;
+}) {
+  const response = await fetch("/api/assets", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) throw new Error("Failed to create asset");
+  return response.json();
+}
+
+export async function deleteAsset(id: string) {
+  const response = await fetch(`/api/assets?id=${id}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) throw new Error("Failed to delete asset");
+  return response.json();
+}
+
+export async function getShowNotes(): Promise<ShowNote[]> {
+  const response = await fetch("/api/show-notes");
+  if (!response.ok) throw new Error("Failed to fetch show notes");
+  return response.json();
+}
+
+export async function createShowNote(data: {
+  episodeId: string;
+  title: string;
+  summary: string;
+  bulletPoints: string[];
+}) {
+  const response = await fetch("/api/show-notes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) throw new Error("Failed to create show note");
+  return response.json();
+}

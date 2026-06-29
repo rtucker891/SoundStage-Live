@@ -68,5 +68,33 @@
         "text": "Testing 1, 2, 3, 4, 5. 5, 4, 3, 2, 1. This is a test of the soundstage recording studio. Testing 1, 2, 3, 4, 5."
       }
     ]
+  },
+  {
+    "id": "transcript-1782519702335",
+    "episodeId": "episode-1782519673950",
+    "createdAt": "2026-06-27T00:21:42.335Z",
+    "segments": [
+      {
+        "id": "1",
+        "speaker": "Speaker",
+        "startTime": 0,
+        "endTime": 0,
+        "text": "All right, we're testing 1, 2, 3, 4, 5, 4, 3, 2, 1. Testing, This is a test of the recording system."
+      }
+    ]
+  },
+  {
+    "id": "transcript-1782587138236",
+    "episodeId": "episode-1782587053959",
+    "createdAt": "2026-06-27T19:05:38.236Z",
+    "segments": [
+      {
+        "id": "1",
+        "speaker": "Speaker",
+        "startTime": 0,
+        "endTime": 0,
+        "text": "So AIPAC trackers, now iconic kind of red cards, have become, it turns out, something that really seems to get under the skin of politicians. And I suspect Arson Kahnna can confirm that from his private conversations with his colleagues. So much so that AIPAC even started a, or some AIPAC offshoot started a like Islamist tracker or something and started making red cards that just mimic yours. Is it Laurel Loomer? Yeah, there's a lot of copycats out there. It's it's uh it's funny in some ways and also disturbing in others. Um yes. And so, one one problem, I guess, that will..."
+      }
+    ]
   }
 ]

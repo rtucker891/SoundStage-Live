@@ -1,6 +1,8 @@
 export type AssetType =
   | "recording"
   | "transcript"
+  | "episode-description"
+  | "publish-package"
   | "show-notes"
   | "artwork"
   | "intro-music"
@@ -17,4 +19,5 @@ export type Asset = {
   mimeType: string;
   createdAt: string;
   url: string;
+  
 };

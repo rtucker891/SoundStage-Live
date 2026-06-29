@@ -3,14 +3,14 @@
     "id": "episode-1",
     "title": "Building Better Podcasts",
     "show": "SoundStage Live Demo",
-    "status": "Planning",
+    "status": "Published",
     "guest": "Sarah Johnson"
   },
   {
     "id": "episode-2",
     "title": "Remote Recording Basics",
     "show": "SoundStage Live Demo",
-    "status": "Recording",
+    "status": "Editing",
     "guest": "Michael Lee"
   },
   {
@@ -73,7 +73,28 @@
     "id": "episode-1782500204293",
     "title": "trial episode",
     "show": "SoundStage Live Demo",
-    "status": "Editing",
+    "status": "Published",
     "guest": "rawle"
+  },
+  {
+    "id": "episode-1782519673950",
+    "title": "testing",
+    "show": "SoundStage Live Demo",
+    "status": "Published",
+    "guest": "rawle"
+  },
+  {
+    "id": "episode-1782695650211",
+    "title": "zeteo",
+    "show": "SoundStage Live Demo",
+    "status": "Recording",
+    "guest": "Rawle Tucker"
+  },
+  {
+    "id": "episode-1782735391975",
+    "title": "Claude",
+    "show": "The Truth about AI",
+    "status": "Planning",
+    "guest": "Rawle Tucker"
   }
 ]
