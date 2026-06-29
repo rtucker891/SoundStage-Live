@@ -4,37 +4,59 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import StatCard from "@/components/dashboard/StatCard";
-import { getEpisodes, getShows } from "@/lib/api";
+import {
+  getAssets,
+  getEpisodes,
+  getShows,
+  getTranscripts,
+  getShowNotes,
+} from "@/lib/api";
 
 import type { Episode } from "@/types/episode";
 import type { Show } from "@/types/show";
-
 export default function DashboardContent() {
-  const [shows, setShows] = useState<Show[]>([]);
-  const [episodes, setEpisodes] = useState<Episode[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    Promise.all([getShows(), getEpisodes()])
-      .then(([showsData, episodesData]) => {
+const [shows, setShows] = useState<Show[]>([]);
+const [episodes, setEpisodes] = useState<Episode[]>([]);
+const [loading, setLoading] = useState(true);
+const [assetCount, setAssetCount] = useState(0);
+const [transcriptCount, setTranscriptCount] = useState(0);
+const [showNoteCount, setShowNoteCount] = useState(0);
+useEffect(() => {
+  Promise.all([
+    getShows(),
+    getEpisodes(),
+    getAssets(),
+    getTranscripts(),
+    getShowNotes(),
+  ])
+    .then(
+      ([
+        showsData,
+        episodesData,
+        assetsData,
+        transcriptsData,
+        showNotesData,
+      ]) => {
         setShows(showsData);
         setEpisodes(episodesData);
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  const draftCount = episodes.filter(
-    (episode) => episode.status === "Draft"
-  ).length;
-
-  if (loading) {
-    return (
-      <div className="rounded-xl bg-white p-6 shadow">
-        <p className="text-slate-500">Loading dashboard...</p>
-      </div>
-    );
-  }
-
+        setAssetCount(assetsData.length);
+        setTranscriptCount(transcriptsData.length);
+        setShowNoteCount(showNotesData.length);
+      }
+    )
+    .finally(() => setLoading(false));
+}, []);
+const publishedCount = episodes.filter(
+  (episode) => episode.status === "Published"
+).length;
+if (loading) {
+  return (
+    <div className="rounded-xl bg-white p-6 shadow">
+      <p className="text-slate-500">Loading dashboard...</p>
+    </div>
+  );
+}
   return (
     <>
     <div className="rounded-2xl bg-gradient-to-r from-indigo-700 via-purple-700 to-pink-600 p-8 text-white shadow-lg">
@@ -64,9 +86,9 @@ export default function DashboardContent() {
 
       <div className="mt-8 grid gap-4 md:grid-cols-4">
         <StatCard title="Shows" value={shows.length} />
-        <StatCard title="Episodes" value={episodes.length} />
-        <StatCard title="Drafts" value={draftCount} />
-        <StatCard title="Recordings" value={0} />
+<StatCard title="Episodes" value={episodes.length} />
+<StatCard title="Published" value={publishedCount} />
+<StatCard title="Assets" value={assetCount} />
       </div>
 <div className="mt-8 rounded-2xl border border-indigo-200 bg-gradient-to-br from-white to-indigo-50 p-6 shadow">
   <div className="flex items-center justify-between">

@@ -26,13 +26,15 @@ export default function EpisodePublishPage() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [showNote, setShowNote] = useState<ShowNote | null>(null);
 
-  const [checks, setChecks] = useState({
-    recording: false,
-    transcript: false,
-    showNotes: false,
-    description: false,
-    coverArt: false,
-  });
+  
+    const [checks, setChecks] = useState({
+  recording: false,
+  transcript: false,
+  showNotes: false,
+  description: false,
+  coverArt: false,
+  publishPackage: false,
+});
 
   useEffect(() => {
     async function load() {
@@ -89,13 +91,17 @@ export default function EpisodePublishPage() {
   const hasCoverArt = assets.some(
     (asset) => asset.type === "artwork"
   );
+  const hasPublishPackage = assets.some(
+  (asset) => asset.type === "publish-package"
+);
 
   const readyToPublish =
-    checks.recording &&
-    checks.transcript &&
-    checks.showNotes &&
-    checks.description &&
-    checks.coverArt;
+  checks.recording &&
+  checks.transcript &&
+  checks.showNotes &&
+  checks.description &&
+  checks.coverArt &&
+  checks.publishPackage;
 
   async function handlePublish() {
     if (!episode || !readyToPublish) return;
@@ -223,6 +229,19 @@ export default function EpisodePublishPage() {
                     {hasCoverArt ? "✓" : "(missing cover art)"}
                   </span>
                 </label>
+                <label className="flex items-center gap-3 rounded-xl border border-slate-200 p-4">
+  <input
+    type="checkbox"
+    checked={checks.publishPackage}
+    onChange={() => toggleCheck("publishPackage")}
+  />
+  <span>
+    Publish package reviewed{" "}
+    {hasPublishPackage
+      ? "✓"
+      : "(missing publish package)"}
+  </span>
+</label>
               </div>
 
               <input
@@ -264,6 +283,7 @@ export default function EpisodePublishPage() {
                 <p>{showNote ? "✓" : "○"} Show Notes</p>
                 <p>{hasDescription ? "✓" : "○"} Description</p>
                 <p>{hasCoverArt ? "✓" : "○"} Cover Art</p>
+                <p>{hasPublishPackage ? "✓" : "○"} Publish Package</p>
               </div>
 
               <div className="mt-6 rounded-xl bg-slate-50 p-4">
