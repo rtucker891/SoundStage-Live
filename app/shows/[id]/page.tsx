@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
 import AppShell from "@/components/AppShell";
-import { getEpisodes, getShows } from "@/lib/api";
+import {
+  getEpisodes,
+  getShows,
+  updateShowCoverArt,
+  uploadFileToStorage,
+} from "@/lib/api";
 
 import type { Episode } from "@/types/episode";
 import type { Show } from "@/types/show";
@@ -15,7 +20,7 @@ export default function ShowDetailsPage() {
   const [show, setShow] = useState<Show | null>(null);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [loading, setLoading] = useState(true);
-
+const [coverArtUrl, setCoverArtUrl] = useState("");
   useEffect(() => {
     Promise.all([getShows(), getEpisodes()])
       .then(([showsData, episodesData]) => {
@@ -24,6 +29,7 @@ export default function ShowDetailsPage() {
         );
 
         setShow(selectedShow || null);
+        setCoverArtUrl((selectedShow as any)?.cover_art_url || "");
 
         if (selectedShow) {
           setEpisodes(
@@ -35,7 +41,24 @@ export default function ShowDetailsPage() {
       })
       .finally(() => setLoading(false));
   }, [params.id]);
+async function uploadShowCoverArt(
+  event: React.ChangeEvent<HTMLInputElement>
+) {
+  if (!show) return;
 
+  const file = event.target.files?.[0];
+
+  if (!file) return;
+
+  const uploaded = await uploadFileToStorage(
+    file,
+    `shows/${show.id}/artwork`
+  );
+
+  await updateShowCoverArt(show.id, uploaded.url);
+
+  setCoverArtUrl(uploaded.url);
+}
   return (
     <AppShell>
       {loading ? (
@@ -51,6 +74,28 @@ export default function ShowDetailsPage() {
     <p className="mt-2 text-slate-600">
       {show.description}
     </p>
+    <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow">
+  <h2 className="text-lg font-bold">Show Cover Art</h2>
+
+  {coverArtUrl ? (
+    <img
+      src={coverArtUrl}
+      alt={show.title}
+      className="mt-4 h-48 w-48 rounded-xl object-cover shadow"
+    />
+  ) : (
+    <p className="mt-3 text-sm text-slate-500">
+      No show cover art uploaded yet.
+    </p>
+  )}
+
+  <input
+    type="file"
+    accept="image/png,image/jpeg,image/webp"
+    onChange={uploadShowCoverArt}
+    className="mt-4 block w-full rounded-lg border border-slate-200 bg-white p-3"
+  />
+</div>
   </div>
 
   <a

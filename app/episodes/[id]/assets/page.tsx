@@ -6,7 +6,6 @@ import { useParams } from "next/navigation";
 
 import AppShell from "@/components/AppShell";
 import {
-  
   deleteAsset,
   getAssets,
   getEpisodes,
@@ -46,8 +45,6 @@ export default function EpisodeAssetsPage() {
     load();
   }, [params.id]);
 
-  
-
   async function handleDeleteAsset(id: string) {
     await deleteAsset(id);
 
@@ -77,11 +74,9 @@ export default function EpisodeAssetsPage() {
               </p>
             </div>
 
-           <span className="rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-700">
-  {assets.length} Assets
-</span>
-            
-             
+            <span className="rounded-full bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-700">
+              {assets.length} Assets
+            </span>
           </div>
 
           <div className="mt-8 rounded-xl bg-white p-6 shadow">
@@ -134,9 +129,27 @@ export default function EpisodeAssetsPage() {
                       </>
                     )}
 
+                    {asset.type === "artwork" && (
+                      <>
+                        <img
+                          src={asset.url}
+                          alt={asset.name}
+                          className="mt-4 max-h-64 rounded-lg border border-slate-200"
+                        />
+
+                        <a
+                          href={asset.url}
+                          target="_blank"
+                          className="mt-4 inline-block rounded-lg bg-pink-600 px-4 py-2 text-sm font-semibold text-white"
+                        >
+                          View Artwork
+                        </a>
+                      </>
+                    )}
+
                     {asset.type === "transcript" && (
                       <a
-                     href={`/episodes/${episode.id}/assets/${asset.id}`}
+                        href={`/episodes/${episode.id}/assets/${asset.id}`}
                         className="mt-4 inline-block rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white"
                       >
                         View Transcript
@@ -145,7 +158,7 @@ export default function EpisodeAssetsPage() {
 
                     {asset.type === "show-notes" && (
                       <a
-                    href={`/episodes/${episode.id}/assets/${asset.id}`}
+                        href={`/episodes/${episode.id}/editor`}
                         className="mt-4 inline-block rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white"
                       >
                         View Show Notes
@@ -154,7 +167,7 @@ export default function EpisodeAssetsPage() {
 
                     {asset.type === "episode-description" && (
                       <a
-                       href={`/episodes/${episode.id}/assets/${asset.id}`}
+                        href={`/episodes/${episode.id}/editor`}
                         className="mt-4 inline-block rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white"
                       >
                         View Episode Description
@@ -163,7 +176,7 @@ export default function EpisodeAssetsPage() {
 
                     {asset.type === "publish-package" && (
                       <a
-                        href={`/episodes/${episode.id}/assets/${asset.id}`}
+                        href={`/episodes/${episode.id}/editor`}
                         className="mt-4 inline-block rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
                       >
                         View Publish Package

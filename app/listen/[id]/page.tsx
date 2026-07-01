@@ -20,8 +20,8 @@ export default async function PublicEpisodePage({
  const { data: episode } = await supabase
   .from("episodes")
   .select(
-    "id, title, guest, status, cover_art_url, shows(title)"
-  )
+  "id, title, guest, status, cover_art_url, shows(title, cover_art_url)"
+)
   .eq("id", id)
   .single();
 
@@ -40,9 +40,19 @@ export default async function PublicEpisodePage({
     .select("*")
     .eq("episode_id", id);
 
+  
   const recording = assets.find(
-    (asset) => asset.type === "recording"
-  );
+  (asset) => asset.type === "recording"
+);
+const artworkAsset = assets.find(
+  (asset) => asset.type === "artwork"
+);
+
+const coverArtUrl =
+  episode.cover_art_url ||
+  artworkAsset?.url ||
+  (episode.shows as any)?.cover_art_url ||
+  "";
 
   const { data: note } = await supabase
     .from("show_notes")
@@ -69,10 +79,10 @@ export default async function PublicEpisodePage({
           <p className="mt-2 text-white/70">
             Show: {(episode.shows as any)?.title || "Untitled Show"}
           </p>
-          {episode.cover_art_url && (
+         {coverArtUrl && (
   <div className="mt-8">
     <img
-      src={episode.cover_art_url}
+      src={coverArtUrl}
       alt={episode.title}
       className="mx-auto w-full max-w-md rounded-2xl border border-white/20 shadow-2xl"
     />

@@ -40,18 +40,50 @@ export default async function PublicShowPage({ params }: Props) {
     <main className="min-h-screen bg-slate-100">
       <div className="mx-auto max-w-5xl p-8">
         <div className="rounded-3xl bg-gradient-to-r from-indigo-700 via-purple-700 to-pink-600 p-10 text-white shadow-xl">
-          <p className="text-sm uppercase tracking-wide text-white/70">
-            SoundStage Live Show
-          </p>
+  <div className="grid gap-8 md:grid-cols-[220px_1fr] md:items-center">
+    {show.cover_art_url ? (
+      <img
+        src={show.cover_art_url}
+        alt={show.title}
+        className="h-56 w-56 rounded-2xl border border-white/20 object-cover shadow-2xl"
+      />
+    ) : (
+      <div className="flex h-56 w-56 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-center text-sm font-semibold text-white/70">
+        No Show Artwork
+      </div>
+    )}
 
-          <h1 className="mt-3 text-5xl font-bold">
-            {show.title}
-          </h1>
+    <div>
+      <p className="text-sm uppercase tracking-wide text-white/70">
+        SoundStage Live Show
+      </p>
 
-          <p className="mt-4 text-lg text-white/80">
-            {show.description || "Podcast show page"}
-          </p>
-        </div>
+      <h1 className="mt-3 text-5xl font-bold">
+        {show.title}
+      </h1>
+
+      <p className="mt-4 text-lg text-white/80">
+        {show.description || "Podcast show page"}
+      </p>
+      <div className="mt-6 flex flex-wrap gap-3">
+  <a
+    href={`/rss/${show.id}`}
+    target="_blank"
+    className="rounded-xl bg-white px-5 py-3 font-semibold text-slate-900"
+  >
+    RSS Feed
+  </a>
+
+  <a
+    href={`/public-shows/${show.id}`}
+    className="rounded-xl border border-white/30 px-5 py-3 font-semibold text-white"
+  >
+    Share Show
+  </a>
+</div>
+    </div>
+  </div>
+</div>
 
         <div className="mt-8 rounded-2xl bg-white p-8 shadow">
           <h2 className="text-2xl font-bold">Episodes</h2>
