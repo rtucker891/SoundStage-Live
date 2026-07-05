@@ -8,10 +8,12 @@ const supabase = createClient(
 );
 
 export default async function BrowseShowsPage() {
-  const { data: shows = [] } = await supabase
+  const { data } = await supabase
     .from("shows")
     .select("id, title, description, cover_art_url")
     .order("created_at", { ascending: false });
+
+  const shows = data || [];
 
   return (
     <main className="min-h-screen bg-slate-100">
@@ -28,10 +30,14 @@ export default async function BrowseShowsPage() {
           </h1>
 
           <p className="mt-5 max-w-2xl text-lg text-white/75">
-            Explore public podcast shows created and published with SoundStage Live.
+            Explore public podcast shows created and published with SoundStage
+            Live.
           </p>
 
-          <form action="/search" className="mt-8 flex max-w-2xl overflow-hidden rounded-xl bg-white shadow-lg">
+          <form
+            action="/search"
+            className="mt-8 flex max-w-2xl overflow-hidden rounded-xl bg-white shadow-lg"
+          >
             <input
               name="q"
               placeholder="Search shows, creators, or topics..."

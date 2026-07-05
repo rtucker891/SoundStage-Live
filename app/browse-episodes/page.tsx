@@ -37,7 +37,7 @@ const episodes = data || [];
         </section>
 
         <section className="mt-10 grid gap-6 md:grid-cols-3">
-          {episodes.length === 0 ? (
+      {episodes.length === 0 ? (
             <p className="text-slate-500">No published episodes yet.</p>
           ) : (
             episodes.map((episode) => {
