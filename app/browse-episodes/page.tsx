@@ -8,13 +8,15 @@ const supabase = createClient(
 );
 
 export default async function BrowseEpisodesPage() {
-  const { data: episodes = [] } = await supabase
+  const { data } = await supabase
   .from("episodes")
-  
-    .select("id, title, guest, cover_art_url, created_at, shows(title, cover_art_url)")
-    .eq("status", "Published")
-    .order("created_at", { ascending: false });
+  .select(
+    "id, title, guest, cover_art_url, created_at, shows(title, cover_art_url)"
+  )
+  .eq("status", "Published")
+  .order("created_at", { ascending: false });
 
+const episodes = data || [];
   return (
     <main className="min-h-screen bg-slate-100">
       <div className="mx-auto max-w-7xl p-8">
