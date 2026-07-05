@@ -17,6 +17,8 @@ export default function EpisodeDetailsPage() {
 
   const [episode, setEpisode] = useState<Episode | null>(null);
   const [loading, setLoading] = useState(true);
+  const [generatingNotes, setGeneratingNotes] = useState(false);
+const [generatedNotes, setGeneratedNotes] = useState("");
 
   useEffect(() => {
     getEpisodes()
@@ -29,6 +31,28 @@ export default function EpisodeDetailsPage() {
       })
       .finally(() => setLoading(false));
   }, [params.id]);
+  async function generateShowNotes() {
+  if (!episode) return;
+
+  setGeneratingNotes(true);
+
+  const response = await fetch("/api/ai/show-notes", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+   body: JSON.stringify({
+  episodeId: episode.id,
+  title: episode.title,
+  transcript: `Episode title: ${episode.title}. Guest: ${episode.guest}. Show: ${episode.show}.`,
+}),
+  });
+
+  const data = await response.json();
+
+  setGeneratedNotes(data.showNotes || "No show notes generated.");
+  setGeneratingNotes(false);
+}
 
   return (
     <AppShell>
@@ -165,6 +189,37 @@ export default function EpisodeDetailsPage() {
               </p>
             </Link>
           </div>
+          <div className="mt-8 rounded-2xl border border-purple-200 bg-white p-6 shadow">
+  <div className="flex items-center justify-between gap-4">
+    <div>
+      <p className="text-sm font-semibold uppercase tracking-wide text-purple-600">
+        AI Production
+      </p>
+
+      <h2 className="text-2xl font-bold">
+        Generate Show Notes
+      </h2>
+
+      <p className="mt-2 text-sm text-slate-600">
+        Use AI to create a summary, key points, and takeaways for this episode.
+      </p>
+    </div>
+
+    <button
+      onClick={generateShowNotes}
+      disabled={generatingNotes}
+      className="rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-5 py-3 font-semibold text-white disabled:opacity-60"
+    >
+      {generatingNotes ? "Generating..." : "Generate Notes"}
+    </button>
+  </div>
+
+  {generatedNotes && (
+    <div className="mt-6 whitespace-pre-wrap rounded-xl bg-slate-100 p-5 text-sm text-slate-700">
+      {generatedNotes}
+    </div>
+  )}
+</div>
 
           <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow">
             <div className="mb-6">

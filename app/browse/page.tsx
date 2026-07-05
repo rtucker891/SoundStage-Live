@@ -14,47 +14,59 @@ export default async function BrowseShowsPage() {
     .order("created_at", { ascending: false });
 
   return (
-   <main className="min-h-screen bg-slate-100">
-  <div className="mx-auto max-w-7xl p-8">
-    <PublicNav />
-        <section className="rounded-3xl bg-gradient-to-r from-indigo-700 via-purple-700 to-pink-600 p-12 text-white shadow-xl">
-          <p className="text-sm font-semibold uppercase tracking-wide text-white/70">
+    <main className="min-h-screen bg-slate-100">
+      <div className="mx-auto max-w-7xl p-8">
+        <PublicNav />
+
+        <section className="overflow-hidden rounded-3xl bg-slate-950 p-10 text-white shadow-2xl">
+          <p className="text-sm font-bold uppercase tracking-wide text-purple-400">
             Browse Podcasts
           </p>
 
-          <h1 className="mt-4 text-5xl font-bold">
+          <h1 className="mt-3 text-5xl font-black">
             Discover shows on SoundStage Live
           </h1>
 
-          <p className="mt-6 max-w-2xl text-xl text-white/80">
+          <p className="mt-5 max-w-2xl text-lg text-white/75">
             Explore public podcast shows created and published with SoundStage Live.
           </p>
+
+          <form action="/search" className="mt-8 flex max-w-2xl overflow-hidden rounded-xl bg-white shadow-lg">
+            <input
+              name="q"
+              placeholder="Search shows, creators, or topics..."
+              className="w-full px-5 py-4 text-slate-900 outline-none"
+            />
+
+            <button className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-7 py-4 font-bold text-white">
+              Search
+            </button>
+          </form>
         </section>
 
         <section className="mt-10 grid gap-6 md:grid-cols-3">
           {shows.length === 0 ? (
-            <p className="text-slate-500">
-              No public shows available yet.
-            </p>
+            <p className="text-slate-500">No public shows available yet.</p>
           ) : (
             shows.map((show) => (
-              <div
+              <Link
                 key={show.id}
-                className="rounded-2xl bg-white p-6 shadow"
+                href={`/public-shows/${show.id}`}
+                className="rounded-3xl bg-white p-5 shadow transition hover:-translate-y-1 hover:shadow-xl"
               >
                 {show.cover_art_url ? (
                   <img
                     src={show.cover_art_url}
                     alt={show.title}
-                    className="h-48 w-full rounded-xl object-cover"
+                    className="aspect-square w-full rounded-2xl object-cover"
                   />
                 ) : (
-                  <div className="flex h-48 items-center justify-center rounded-xl bg-slate-200 text-slate-500">
-                    No Artwork
+                  <div className="flex aspect-square items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 text-center text-lg font-black text-white">
+                    SoundStage Live
                   </div>
                 )}
 
-                <h2 className="mt-4 text-xl font-bold">
+                <h2 className="mt-4 text-xl font-black text-slate-900">
                   {show.title}
                 </h2>
 
@@ -62,25 +74,13 @@ export default async function BrowseShowsPage() {
                   {show.description || "Podcast show"}
                 </p>
 
-                <Link
-                  href={`/public-shows/${show.id}`}
-                  className="mt-4 inline-block rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
-                >
-                  View Show
-                </Link>
-              </div>
+                <div className="mt-4 text-sm font-bold text-purple-600">
+                  View Show →
+                </div>
+              </Link>
             ))
           )}
         </section>
-
-        <div className="mt-10">
-          <Link
-            href="/"
-            className="rounded-xl bg-slate-900 px-6 py-3 font-semibold text-white"
-          >
-            Back to Home
-          </Link>
-        </div>
       </div>
     </main>
   );
