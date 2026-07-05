@@ -9,7 +9,8 @@ const supabase = createClient(
 
 export default async function BrowseEpisodesPage() {
   const { data: episodes = [] } = await supabase
-    .from("episodes")
+  .from("episodes")
+  
     .select("id, title, guest, cover_art_url, created_at, shows(title, cover_art_url)")
     .eq("status", "Published")
     .order("created_at", { ascending: false });
