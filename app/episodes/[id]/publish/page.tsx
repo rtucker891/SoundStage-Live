@@ -106,7 +106,22 @@ export default function EpisodePublishPage() {
   async function handlePublish() {
     if (!episode || !readyToPublish) return;
 
-    await updateEpisodeStatus(episode.id, "Published");
+    setPublishedMessage("Publishing… copying audio to public storage.");
+
+    // Call the server publish route: it copies audio + artwork into the
+    // public bucket, captures permanent URLs + size/duration, and marks
+    // the episode Published. This is what makes the RSS enclosure work.
+    const res = await fetch(`/api/episodes/${episode.id}/publish`, {
+      method: "POST",
+    });
+    const result = await res.json();
+
+    if (!res.ok) {
+      setPublishedMessage(
+        `Publish failed: ${result.error ?? "Unknown error"}`
+      );
+      return;
+    }
 
     setEpisode({
       ...episode,
@@ -114,9 +129,10 @@ export default function EpisodePublishPage() {
     });
 
     setPublishedMessage(
-      releaseDate
-        ? `Episode published for ${releaseDate}.`
-        : "Episode published successfully."
+      (releaseDate
+        ? `Episode published for ${releaseDate}. `
+        : "Episode published successfully. ") +
+        (result.note ? `Note: ${result.note}` : "")
     );
   }
 

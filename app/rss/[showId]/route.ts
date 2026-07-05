@@ -68,7 +68,9 @@ export async function GET(request: Request, { params }: Props) {
 
   const { data: episodesData } = await supabase
     .from("episodes")
-    .select("id, title, guest, created_at, cover_art_url")
+    .select(
+      "id, title, guest, created_at, cover_art_url, published_audio_url, published_audio_size, published_audio_mime, published_audio_duration, published_artwork_url"
+    )
     .eq("show_id", showId)
     .eq("status", "Published")
     .order("created_at", { ascending: false });
@@ -160,20 +162,32 @@ export async function GET(request: Request, { params }: Props) {
       const pubDate = new Date(episode.created_at).toUTCString();
       const guest = episode.guest ? `Guest: ${episode.guest}` : "";
       const description = guest || showDescription;
-      const episodeImage = episode.cover_art_url || showImage;
-      const duration = formatDuration(recording?.duration);
+      // Prefer the permanent published artwork; fall back to episode/show art.
+      const episodeImage =
+        episode.published_artwork_url ||
+        episode.cover_art_url ||
+        showImage;
+
+      // Prefer the PERMANENT published audio URL (public bucket, never expires).
+      // Fall back to the recording's (possibly expiring) URL only if the
+      // episode has not been through the publish pipeline yet.
+      const audioUrl =
+        episode.published_audio_url || recording?.audio_url || null;
+      const duration = formatDuration(
+        episode.published_audio_duration || recording?.duration
+      );
 
       // <enclosure> — only emit when we actually have an audio URL, since a
       // broken/empty enclosure invalidates the item for podcast apps.
       let enclosure = "";
-      if (recording?.audio_url) {
-        const length = asset?.file_size ?? 0;
-        const type = audioMimeFromUrl(
-          recording.audio_url,
-          asset?.mime_type
-        );
+      if (audioUrl) {
+        const length =
+          episode.published_audio_size ?? asset?.file_size ?? 0;
+        const type =
+          episode.published_audio_mime ||
+          audioMimeFromUrl(audioUrl, asset?.mime_type);
         enclosure = `<enclosure url="${xml(
-          recording.audio_url
+          audioUrl
         )}" length="${length}" type="${xml(type)}" />`;
       }
 
