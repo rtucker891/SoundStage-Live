@@ -12,8 +12,8 @@ export async function POST(request: Request) {
   const formData = await request.formData();
 
 const file = formData.get("file");
-const episodeId = formData.get("episodeId");
-const name = formData.get("name");
+const episodeId = String(formData.get("episodeId") || "");
+const name = String(formData.get("name") || "Untitled Recording");
 
 if (!(file instanceof File)) {
   return NextResponse.json(
