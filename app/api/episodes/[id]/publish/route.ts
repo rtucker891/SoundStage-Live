@@ -45,15 +45,39 @@ function mimeFromExt(ext: string): string {
   return "application/octet-stream";
 }
 
-export async function POST(_request: Request, { params }: Props) {
+export async function POST(request: Request, props: Props) {
+  try {
+    return await handlePublish(request, props);
+  } catch (err) {
+    // Surface the real reason instead of a bare 500 with an empty body.
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json(
+      { error: `Publish failed: ${message}` },
+      { status: 500 }
+    );
+  }
+}
+
+async function handlePublish(_request: Request, { params }: Props) {
   const { id: episodeId } = await params;
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !serviceKey) {
+    return NextResponse.json(
+      {
+        error:
+          "Server is missing Supabase credentials. Set SUPABASE_SERVICE_ROLE_KEY (and NEXT_PUBLIC_SUPABASE_URL) in the Vercel project environment variables.",
+        hasUrl: Boolean(supabaseUrl),
+        hasServiceKey: Boolean(serviceKey),
+      },
+      { status: 500 }
+    );
+  }
 
   // Server-only admin client (service role) so we can copy between buckets
   // and read private objects during publish. Never exposed to the browser.
-  const admin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
-    process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""
-  );
+  const admin = createClient(supabaseUrl, serviceKey);
 
   // 1) Load the episode.
   const { data: episode, error: epErr } = await admin
