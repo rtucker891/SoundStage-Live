@@ -19,6 +19,8 @@ export default function EpisodeDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [generatingNotes, setGeneratingNotes] = useState(false);
 const [generatedNotes, setGeneratedNotes] = useState("");
+const [generatingArtwork, setGeneratingArtwork] = useState(false);
+const [generatedArtwork, setGeneratedArtwork] = useState("");
 
   useEffect(() => {
     getEpisodes()
@@ -205,13 +207,46 @@ const [generatedNotes, setGeneratedNotes] = useState("");
       </p>
     </div>
 
-    <button
-      onClick={generateShowNotes}
-      disabled={generatingNotes}
-      className="rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-5 py-3 font-semibold text-white disabled:opacity-60"
-    >
-      {generatingNotes ? "Generating..." : "Generate Notes"}
-    </button>
+    <div className="flex flex-wrap gap-3">
+  <button
+    onClick={generateShowNotes}
+    disabled={generatingNotes}
+    className="rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-5 py-3 font-semibold text-white disabled:opacity-60"
+  >
+    {generatingNotes ? "Generating..." : "Generate Notes"}
+  </button>
+
+  <button
+  type="button"
+  disabled={generatingArtwork}
+  onClick={async () => {
+  if (!episode) return;
+
+  setGeneratingArtwork(true);
+
+  const response = await fetch("/api/ai/artwork", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      title: episode.title,
+      show: episode.show,
+      guest: episode.guest,
+    }),
+  });
+
+  const data = await response.json();
+
+  setGeneratedArtwork(data.image || "");
+
+  setGeneratingArtwork(false);
+}}
+  className="rounded-xl border border-purple-300 bg-white px-5 py-3 font-semibold text-purple-700 hover:bg-purple-50 disabled:opacity-60"
+>
+  {generatingArtwork ? "Generating Artwork..." : "Generate Artwork"}
+</button>
+</div>
   </div>
 
   {generatedNotes && (
@@ -219,6 +254,19 @@ const [generatedNotes, setGeneratedNotes] = useState("");
       {generatedNotes}
     </div>
   )}
+  {generatedArtwork && (
+  <div className="mt-6">
+    <p className="mb-3 text-sm font-semibold text-purple-600">
+      Generated Artwork
+    </p>
+
+    <img
+      src={generatedArtwork}
+      alt="Generated podcast artwork"
+      className="w-full max-w-xs rounded-2xl shadow"
+    />
+  </div>
+)}
 </div>
 
           <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow">
