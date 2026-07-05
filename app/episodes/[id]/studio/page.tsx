@@ -13,6 +13,7 @@ import {
   updateEpisodeStatus,
   uploadFileToStorage,
 } from "@/lib/api";
+import { convertToMp3 } from "@/lib/audio/convertToMp3";
 
 import type { Episode } from "@/types/episode";
 
@@ -67,15 +68,18 @@ export default function EpisodeStudioPage() {
 
     mediaRecorder.onstop = async () => {
      try { 
-      const blob = new Blob(chunksRef.current, {
+      // Raw browser capture is WebM/Opus. Podcast directories (Apple) require
+      // MP3, so we convert in-browser before uploading. See lib/audio.
+      const webmBlob = new Blob(chunksRef.current, {
         type: "audio/webm",
       });
 
-      const fileName = `recording-${Date.now()}.webm`;
+      const stem = `recording-${Date.now()}`;
 
-      const recordingFile = new File([blob], fileName, {
-        type: "audio/webm",
-      });
+      const { file: recordingFile, size: mp3Size, durationSeconds } =
+        await convertToMp3(webmBlob, stem, (status) => setMessage(status));
+
+      const fileName = recordingFile.name; // "<stem>.mp3"
 
       const uploadedFile = await uploadFileToStorage(
         recordingFile,
@@ -87,7 +91,7 @@ export default function EpisodeStudioPage() {
       await createRecording({
         episodeId: episode.id,
         name: `Recording ${new Date().toLocaleTimeString()}`,
-        duration: 0,
+        duration: durationSeconds,
         audioUrl: url,
       });
 
@@ -98,8 +102,8 @@ export default function EpisodeStudioPage() {
         name: `Recording ${new Date().toLocaleTimeString()}`,
         type: "recording",
         fileName,
-        fileSize: blob.size,
-        mimeType: "audio/webm",
+        fileSize: mp3Size,
+        mimeType: "audio/mpeg",
         url,
       });
 
@@ -222,7 +226,7 @@ export default function EpisodeStudioPage() {
 
                   <a
                     href={audioUrl}
-                    download="recording.webm"
+                    download="recording.mp3"
                     className="mt-4 inline-block rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
                   >
                     Download Recording
