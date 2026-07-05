@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { openai } from "@/lib/openai/client";
+import { getOpenAI } from "@/lib/openai/client";
 
 export async function POST(request: Request) {
   try {
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await openai.images.generate({
+    const result = await getOpenAI().images.generate({
       model: "gpt-image-1",
       prompt: `
 Create a square podcast cover image for SoundStage Live.

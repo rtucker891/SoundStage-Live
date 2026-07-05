@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabaseClient";
 import PublicNav from "@/components/public/PublicNav";
+
+export const dynamic = "force-dynamic";
 
 type SearchPageProps = {
   searchParams: Promise<{
@@ -8,26 +10,22 @@ type SearchPageProps = {
   }>;
 };
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 export default async function SearchPage({
   searchParams,
 }: SearchPageProps) {
   const { q = "" } = await searchParams;
   const query = q.trim();
 
-  const { data: shows = [] } = query
+  const { data: showsData } = query
     ? await supabase
         .from("shows")
         .select("id, title, description, cover_art_url")
         .or(`title.ilike.%${query}%,description.ilike.%${query}%`)
         .limit(12)
     : { data: [] };
+  const shows = showsData ?? [];
 
-  const { data: episodes = [] } = query
+  const { data: episodesData } = query
     ? await supabase
         .from("episodes")
         .select(
@@ -37,6 +35,7 @@ export default async function SearchPage({
         .or(`title.ilike.%${query}%,guest.ilike.%${query}%`)
         .limit(12)
     : { data: [] };
+  const episodes = episodesData ?? [];
 
   return (
     <main className="min-h-screen bg-slate-100">

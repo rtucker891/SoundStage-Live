@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { openai } from "@/lib/openai/client";
+import { getOpenAI } from "@/lib/openai/client";
 
 export async function POST(request: Request) {
   const formData = await request.formData();
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   }
 
   const transcription =
-    await openai.audio.transcriptions.create({
+    await getOpenAI().audio.transcriptions.create({
       file,
       model: "gpt-4o-mini-transcribe",
     });

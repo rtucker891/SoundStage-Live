@@ -1,9 +1,5 @@
-import OpenAI from "openai";
 import { NextResponse } from "next/server";
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+import { getOpenAI } from "@/lib/openai/client";
 
 export async function POST(
   request: Request
@@ -15,7 +11,7 @@ export async function POST(
       body.prompt ||
       "Professional podcast cover art";
 
-    const image = await openai.images.generate({
+    const image = await getOpenAI().images.generate({
       model: "gpt-image-1",
       prompt,
       size: "1024x1024",

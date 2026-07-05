@@ -1,19 +1,18 @@
 import Link from "next/link";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabaseClient";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const { data: latestEpisodes = [] } = await supabase
+  const { data: latestEpisodesData } = await supabase
   .from("episodes")
   .select("id, title, guest, status, shows(title)")
   .eq("status", "Published")
   .order("created_at", { ascending: false })
   .limit(3);
-  
+
+  const latestEpisodes = latestEpisodesData ?? [];
+
   return (
     <main className="min-h-screen bg-slate-100">
       <div className="mx-auto max-w-7xl p-8">

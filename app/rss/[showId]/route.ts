@@ -1,15 +1,12 @@
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabaseClient";
+
+export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{
     showId: string;
   }>;
 };
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 export async function GET(
   request: Request,
@@ -29,12 +26,14 @@ export async function GET(
     });
   }
 
-  const { data: episodes = [] } = await supabase
+  const { data: episodesData } = await supabase
     .from("episodes")
     .select("id, title, guest, created_at")
     .eq("show_id", showId)
     .eq("status", "Published")
     .order("created_at", { ascending: false });
+
+  const episodes = episodesData ?? [];
 
   const baseUrl = new URL(request.url).origin;
 

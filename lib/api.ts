@@ -180,7 +180,9 @@ export async function updateEpisodeStatus(
     title: data.title,
     guest: data.guest || "Pending",
     status: data.status || "Planning",
-    show: data.shows?.title || "Untitled Show",
+    show:
+      (Array.isArray(data.shows) ? data.shows[0] : data.shows)?.title ||
+      "Untitled Show",
   };
 }
 
@@ -259,6 +261,7 @@ export async function getRecordings(): Promise<Recording[]> {
     episodeId: recording.episode_id,
     name: recording.name,
     duration: recording.duration || 0,
+    createdAt: recording.created_at,
     audioUrl: recording.audio_url,
   }));
 }
@@ -298,6 +301,7 @@ export async function createRecording(data: {
     episodeId: recording.episode_id,
     name: recording.name,
     duration: recording.duration || 0,
+    createdAt: recording.created_at,
     audioUrl: recording.audio_url,
   };
 }
@@ -325,6 +329,7 @@ export async function getTranscripts(): Promise<Transcript[]> {
   return data.map((transcript) => ({
     id: transcript.id,
     episodeId: transcript.episode_id,
+    createdAt: transcript.created_at,
     segments: transcript.segments || [],
   }));
 }
@@ -357,6 +362,7 @@ export async function createTranscript(data: {
   return {
     id: transcript.id,
     episodeId: transcript.episode_id,
+    createdAt: transcript.created_at,
     segments: transcript.segments || [],
   };
 }
@@ -390,6 +396,7 @@ export async function updateTranscript(data: {
   return {
     id: transcript.id,
     episodeId: transcript.episode_id,
+    createdAt: transcript.created_at,
     segments: transcript.segments || [],
   };
 }
@@ -418,6 +425,7 @@ export async function getAssets(): Promise<Asset[]> {
     fileName: asset.file_name,
     fileSize: asset.file_size,
     mimeType: asset.mime_type,
+    createdAt: asset.created_at,
     url: asset.url,
   }));
 }
@@ -505,6 +513,7 @@ export async function getShowNotes(): Promise<ShowNote[]> {
     title: note.title,
     summary: note.summary || "",
     bulletPoints: note.bullet_points || [],
+    createdAt: note.created_at,
   }));
 }
 
@@ -545,6 +554,7 @@ export async function createShowNote(data: {
     title: note.title,
     summary: note.summary || "",
     bulletPoints: note.bullet_points || [],
+    createdAt: note.created_at,
   };
 }
 

@@ -1,16 +1,13 @@
 import Link from "next/link";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabaseClient";
+
+export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{
     id: string;
   }>;
 };
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 export default async function PublicShowPage({ params }: Props) {
   const { id } = await params;
@@ -29,12 +26,14 @@ export default async function PublicShowPage({ params }: Props) {
     );
   }
 
-  const { data: episodes = [] } = await supabase
+  const { data: episodesData } = await supabase
     .from("episodes")
     .select("*")
     .eq("show_id", id)
     .eq("status", "Published")
     .order("created_at", { ascending: false });
+
+  const episodes = episodesData ?? [];
 
   return (
     <main className="min-h-screen bg-slate-100">

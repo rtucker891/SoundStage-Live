@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { openai } from "@/lib/openai/client";
+import { getOpenAI } from "@/lib/openai/client";
 
 export async function POST(request: Request) {
   const body = await request.json();
@@ -8,7 +8,7 @@ export async function POST(request: Request) {
   const transcript = body.transcript;
   const showNotes = body.showNotes;
 
-  const response = await openai.responses.create({
+  const response = await getOpenAI().responses.create({
     model: "gpt-4.1-mini",
     input: `
 You are a podcast publishing assistant.

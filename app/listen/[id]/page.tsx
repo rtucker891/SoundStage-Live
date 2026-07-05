@@ -1,16 +1,13 @@
 import Link from "next/link";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabaseClient";
+
+export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{
     id: string;
   }>;
 };
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 export default async function PublicEpisodePage({
   params,
@@ -35,12 +32,13 @@ export default async function PublicEpisodePage({
     );
   }
 
-  const { data: assets = [] } = await supabase
+  const { data: assetsData } = await supabase
     .from("assets")
     .select("*")
     .eq("episode_id", id);
 
-  
+  const assets = assetsData ?? [];
+
   const recording = assets.find(
   (asset) => asset.type === "recording"
 );
