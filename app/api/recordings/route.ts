@@ -52,6 +52,7 @@ const audioUrl = `/recordings/${fileName}`;
   createdAt: new Date().toISOString(),
   fileName,
   audioUrl,
+  duration: 0,
 };
 recordings.push(recording);
 
