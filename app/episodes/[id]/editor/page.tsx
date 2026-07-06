@@ -32,6 +32,8 @@ export default function EpisodeEditorPage() {
   const [transcript, setTranscript] = useState<Transcript | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [transcriptMessage, setTranscriptMessage] = useState("");
+  const [savingTranscript, setSavingTranscript] = useState(false);
   const [showNote, setShowNote] = useState<ShowNote | null>(null);
   const [recordingAsset, setRecordingAsset] = useState<Asset | null>(null);
   const [saveMessage, setSaveMessage] = useState("");
@@ -112,52 +114,65 @@ export default function EpisodeEditorPage() {
 
   async function generateTranscript() {
     if (!episode || !recordingAsset?.url) return;
+    // Guard against a second click while transcription is running.
+    if (generating) return;
 
     setGenerating(true);
+    setTranscriptMessage("");
 
-    const audioResponse = await fetch(recordingAsset.url);
-    const audioBlob = await audioResponse.blob();
+    try {
+      const audioResponse = await fetch(recordingAsset.url);
+      if (!audioResponse.ok) {
+        throw new Error(
+          "Could not load the recording audio. The link may have expired \u2014 try reopening the episode."
+        );
+      }
+      const audioBlob = await audioResponse.blob();
 
-    const formData = new FormData();
+      const formData = new FormData();
+      formData.append("file", audioBlob, recordingAsset.fileName);
 
-    formData.append(
-      "file",
-      audioBlob,
-      recordingAsset.fileName
-    );
+      const response = await fetch("/api/ai/transcribe", {
+        method: "POST",
+        body: formData,
+      });
 
-    const response = await fetch("/api/ai/transcribe", {
-      method: "POST",
-      body: formData,
-    });
+      const data = await response.json();
 
-    const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Transcription failed.");
+      }
 
-    const created = await createTranscript({
-      episodeId: episode.id,
-      segments: [
-        {
-          id: "1",
-          speaker: "Speaker",
-          startTime: 0,
-          endTime: 0,
-          text: data.text,
-        },
-      ],
-    });
+      const created = await createTranscript({
+        episodeId: episode.id,
+        segments: [
+          {
+            id: "1",
+            speaker: "Speaker",
+            startTime: 0,
+            endTime: 0,
+            text: data.text,
+          },
+        ],
+      });
 
-    await createAsset({
-      episodeId: episode.id,
-      name: "AI Transcript",
-      type: "transcript",
-      fileName: "transcript.json",
-      fileSize: JSON.stringify(created).length,
-      mimeType: "application/json",
-      url: "#",
-    });
+      await createAsset({
+        episodeId: episode.id,
+        name: "AI Transcript",
+        type: "transcript",
+        fileName: "transcript.json",
+        fileSize: JSON.stringify(created).length,
+        mimeType: "application/json",
+        url: "#",
+      });
 
-    setTranscript(created);
-    setGenerating(false);
+      setTranscript(created);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setTranscriptMessage(`Could not generate transcript: ${msg}`);
+    } finally {
+      setGenerating(false);
+    }
   }
 
   async function generateShowNotes() {
@@ -265,18 +280,28 @@ export default function EpisodeEditorPage() {
 
   async function saveTranscript() {
     if (!transcript) return;
+    if (savingTranscript) return;
 
-    const saved = await updateTranscript({
-      id: transcript.id,
-      segments: transcript.segments,
-    });
+    setSavingTranscript(true);
+    setSaveMessage("");
 
-    setTranscript(saved);
-    await generateShowNotes();
+    try {
+      const saved = await updateTranscript({
+        id: transcript.id,
+        segments: transcript.segments,
+      });
 
-    setSaveMessage(
-      "Transcript and show notes saved successfully."
-    );
+      setTranscript(saved);
+      // Note: saving the transcript no longer auto-regenerates show notes.
+      // Generating notes is its own explicit action in the Show Notes
+      // section, so saving an edit stays fast and predictable.
+      setSaveMessage("Transcript saved.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setSaveMessage(`Could not save transcript: ${msg}`);
+    } finally {
+      setSavingTranscript(false);
+    }
   }
 
   async function generateEpisodeDescription() {
@@ -510,18 +535,25 @@ async function uploadCoverArt(
             {!transcript ? (
               <>
                 <p className="mt-4 text-slate-600">
-                  Generate an AI transcript from the saved recording.
+                  Generate an AI transcript from the saved recording. This can
+                  take a bit while the AI listens to the full recording.
                 </p>
 
                 <button
                   onClick={generateTranscript}
                   disabled={generating}
-                  className="mt-6 rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white"
+                  className="mt-6 rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white disabled:opacity-60"
                 >
                   {generating
-                    ? "Generating..."
+                    ? "Transcribing recording..."
                     : "Generate AI Transcript"}
                 </button>
+
+                {transcriptMessage && (
+                  <p className="mt-4 text-sm font-semibold text-red-600">
+                    {transcriptMessage}
+                  </p>
+                )}
               </>
             ) : (
               <div className="mt-6 space-y-6">
@@ -562,13 +594,20 @@ async function uploadCoverArt(
 
                     <button
                       onClick={saveTranscript}
-                      className="mt-3 rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white"
+                      disabled={savingTranscript}
+                      className="mt-3 rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white disabled:opacity-60"
                     >
-                      Save Transcript
+                      {savingTranscript ? "Saving..." : "Save Transcript"}
                     </button>
 
                     {saveMessage && (
-                      <p className="mt-3 text-sm font-semibold text-green-600">
+                      <p
+                        className={
+                          saveMessage.startsWith("Could not")
+                            ? "mt-3 text-sm font-semibold text-red-600"
+                            : "mt-3 text-sm font-semibold text-green-600"
+                        }
+                      >
                         {saveMessage}
                       </p>
                     )}
