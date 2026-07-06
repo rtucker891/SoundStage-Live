@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import StatCard from "@/components/dashboard/StatCard";
@@ -15,6 +16,7 @@ import {
 import type { Episode } from "@/types/episode";
 import type { Show } from "@/types/show";
 export default function DashboardContent() {
+  const router = useRouter();
 
 const [shows, setShows] = useState<Show[]>([]);
 const [episodes, setEpisodes] = useState<Episode[]>([]);
@@ -190,7 +192,16 @@ if (loading) {
     {episodes.slice(0, 6).map((episode) => (
       <div
         key={episode.id}
-        className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-5 shadow transition-all hover:-translate-y-1 hover:shadow-xl"
+        role="button"
+        tabIndex={0}
+        onClick={() => router.push(`/listen/${episode.id}`)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            router.push(`/listen/${episode.id}`);
+          }
+        }}
+        className="cursor-pointer rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-5 shadow transition-all hover:-translate-y-1 hover:shadow-xl"
       >
         <div className="flex items-center justify-between">
           <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
@@ -212,12 +223,29 @@ if (loading) {
           Guest: {episode.guest}
         </p>
 
-        <Link
-          href={`/episodes/${episode.id}`}
-          className="mt-5 inline-block rounded-lg bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-4 py-2 text-sm font-semibold text-white"
-        >
-          Open Episode
-        </Link>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push(`/listen/${episode.id}`);
+            }}
+            className="inline-flex items-center rounded-lg bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-4 py-2 text-sm font-semibold text-white"
+          >
+            ▶ Listen
+          </button>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push(`/episodes/${episode.id}`);
+            }}
+            className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Open Episode
+          </button>
+        </div>
       </div>
     ))}
   </div>
