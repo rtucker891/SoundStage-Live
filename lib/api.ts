@@ -732,6 +732,51 @@ export async function createShowNote(data: {
   };
 }
 
+/**
+ * Update an existing show note's title, summary, and bullet points.
+ * Used by the editor so creators can revise AI-generated notes before
+ * publishing. Only the current user's own note can be updated.
+ */
+export async function updateShowNote(data: {
+  id: string;
+  title: string;
+  summary: string;
+  bulletPoints: string[];
+}) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Not signed in");
+  }
+
+  const { data: note, error } = await supabase
+    .from("show_notes")
+    .update({
+      title: data.title,
+      summary: data.summary,
+      bullet_points: data.bulletPoints,
+    })
+    .eq("id", data.id)
+    .eq("user_id", user.id)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return {
+    id: note.id,
+    episodeId: note.episode_id,
+    title: note.title,
+    summary: note.summary || "",
+    bulletPoints: note.bullet_points || [],
+    createdAt: note.created_at,
+  };
+}
+
 export async function updateEpisodeCoverArt(
   id: string,
   coverArtUrl: string

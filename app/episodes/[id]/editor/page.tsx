@@ -14,6 +14,7 @@ import {
   getShowNotes,
   getTranscripts,
   updateEpisodeStatus,
+  updateShowNote,
   updateTranscript,
   uploadFileToStorage,
 updateEpisodeCoverArt,
@@ -40,6 +41,16 @@ export default function EpisodeEditorPage() {
   const [copyMessage, setCopyMessage] = useState("");
   const [coverArtUrl, setCoverArtUrl] = useState("");
   const [coverArtPrompt, setCoverArtPrompt] = useState("");
+
+  // Show-notes editing state. When editing is true, the read-only view is
+  // swapped for editable fields. The "draft" values hold in-progress edits so
+  // we can cancel without losing the saved note.
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [notesMessage, setNotesMessage] = useState("");
+  const [draftNoteTitle, setDraftNoteTitle] = useState("");
+  const [draftNoteSummary, setDraftNoteSummary] = useState("");
+  const [draftNoteBullets, setDraftNoteBullets] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -185,6 +196,54 @@ export default function EpisodeEditorPage() {
       mimeType: "text/markdown",
       url: "#",
     });
+  }
+
+  // Open the editor: copy the saved note into the draft fields. Bullet points
+  // are shown one per line so they're easy to edit in a plain textarea.
+  function startEditingNotes() {
+    if (!showNote) return;
+    setDraftNoteTitle(showNote.title);
+    setDraftNoteSummary(showNote.summary);
+    setDraftNoteBullets(showNote.bulletPoints.join("\n"));
+    setNotesMessage("");
+    setEditingNotes(true);
+  }
+
+  function cancelEditingNotes() {
+    setEditingNotes(false);
+    setNotesMessage("");
+  }
+
+  async function saveShowNoteEdits() {
+    if (!showNote) return;
+
+    setSavingNotes(true);
+    setNotesMessage("");
+
+    // Turn the textarea (one bullet per line) back into a clean array,
+    // dropping blank lines.
+    const bulletPoints = draftNoteBullets
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+
+    try {
+      const saved = await updateShowNote({
+        id: showNote.id,
+        title: draftNoteTitle.trim() || showNote.title,
+        summary: draftNoteSummary,
+        bulletPoints,
+      });
+
+      setShowNote(saved);
+      setEditingNotes(false);
+      setNotesMessage("Show notes saved.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setNotesMessage(`Could not save show notes: ${msg}`);
+    } finally {
+      setSavingNotes(false);
+    }
   }
 
   async function saveTranscript() {
@@ -532,21 +591,124 @@ async function uploadCoverArt(
                   Generate Show Notes
                 </button>
               </>
+            ) : editingNotes ? (
+              <div className="mt-6 space-y-4 rounded-lg border border-purple-100 bg-white p-4">
+                <div>
+                  <label
+                    htmlFor="note-title"
+                    className="block text-sm font-semibold text-slate-800"
+                  >
+                    Title
+                  </label>
+                  <input
+                    id="note-title"
+                    type="text"
+                    value={draftNoteTitle}
+                    onChange={(e) => setDraftNoteTitle(e.target.value)}
+                    className="mt-2 w-full rounded-lg border border-slate-200 p-3 text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="note-summary"
+                    className="block text-sm font-semibold text-slate-800"
+                  >
+                    Summary
+                  </label>
+                  <textarea
+                    id="note-summary"
+                    value={draftNoteSummary}
+                    onChange={(e) => setDraftNoteSummary(e.target.value)}
+                    rows={8}
+                    className="mt-2 w-full rounded-lg border border-slate-200 p-3 text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="note-bullets"
+                    className="block text-sm font-semibold text-slate-800"
+                  >
+                    Key points
+                  </label>
+                  <p className="mt-1 text-xs text-slate-500">
+                    One point per line.
+                  </p>
+                  <textarea
+                    id="note-bullets"
+                    value={draftNoteBullets}
+                    onChange={(e) => setDraftNoteBullets(e.target.value)}
+                    rows={5}
+                    placeholder={"First key point\nSecond key point"}
+                    className="mt-2 w-full rounded-lg border border-slate-200 p-3 text-sm"
+                  />
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={saveShowNoteEdits}
+                    disabled={savingNotes}
+                    className="rounded-lg bg-purple-600 px-5 py-2 font-semibold text-white disabled:opacity-60"
+                  >
+                    {savingNotes ? "Saving..." : "Save Show Notes"}
+                  </button>
+                  <button
+                    onClick={cancelEditingNotes}
+                    disabled={savingNotes}
+                    className="rounded-lg border border-slate-300 px-5 py-2 font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                  >
+                    Cancel
+                  </button>
+                </div>
+
+                {notesMessage && (
+                  <p
+                    className={
+                      notesMessage.startsWith("Could not")
+                        ? "text-sm font-semibold text-red-600"
+                        : "text-sm font-semibold text-green-600"
+                    }
+                  >
+                    {notesMessage}
+                  </p>
+                )}
+              </div>
             ) : (
               <div className="mt-6 rounded-lg border border-purple-100 bg-white p-4">
-                <h3 className="font-bold">
-                  {showNote.title}
-                </h3>
+                <div className="flex items-start justify-between gap-4">
+                  <h3 className="font-bold">{showNote.title}</h3>
+                  <button
+                    onClick={startEditingNotes}
+                    className="shrink-0 rounded-lg border border-purple-300 px-3 py-1 text-sm font-semibold text-purple-700 hover:bg-purple-50"
+                  >
+                    Edit
+                  </button>
+                </div>
 
-                <p className="mt-3 text-slate-600">
+                <p className="mt-3 whitespace-pre-wrap text-slate-600">
                   {showNote.summary}
                 </p>
 
-                <ul className="mt-4 list-disc space-y-2 pl-6">
-                  {showNote.bulletPoints.map((point) => (
-                    <li key={point}>{point}</li>
-                  ))}
-                </ul>
+                {showNote.bulletPoints.length > 0 && (
+                  <ul className="mt-4 list-disc space-y-2 pl-6">
+                    {showNote.bulletPoints.map((point) => (
+                      <li key={point}>{point}</li>
+                    ))}
+                  </ul>
+                )}
+
+                {notesMessage && (
+                  <p
+                    className={
+                      notesMessage.startsWith("Could not")
+                        ? "mt-3 text-sm font-semibold text-red-600"
+                        : "mt-3 text-sm font-semibold text-green-600"
+                    }
+                  >
+                    {notesMessage}
+                  </p>
+                )}
               </div>
             )}
           </div>
