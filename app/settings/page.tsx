@@ -1,4 +1,5 @@
 import AppShell from "@/components/AppShell";
+import ChangePasswordForm from "@/components/settings/ChangePasswordForm";
 
 export default function SettingsPage() {
   return (
@@ -52,6 +53,8 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+
+        <ChangePasswordForm />
       </div>
     </AppShell>
   );
