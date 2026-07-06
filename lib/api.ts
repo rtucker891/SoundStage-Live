@@ -74,6 +74,104 @@ export async function createShow(data: {
   
 
 
+// ---- Podcast (show) settings ----
+// These map to the iTunes/RSS channel fields required for directory submission
+// (Apple Podcasts, Spotify). Stored on the shows table.
+export type PodcastSettings = {
+  id: string;
+  title: string;
+  description: string;
+  author: string;
+  ownerName: string;
+  ownerEmail: string;
+  itunesCategory: string;
+  explicit: boolean;
+  language: string;
+};
+
+/**
+ * Load the podcast settings for a single show owned by the current user.
+ * Returns null if the show doesn't exist or isn't owned by the user.
+ */
+export async function getShowSettings(
+  id: string
+): Promise<PodcastSettings | null> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Not signed in");
+
+  const { data, error } = await supabase
+    .from("shows")
+    .select(
+      "id, title, description, author, owner_name, owner_email, itunes_category, explicit, language"
+    )
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .single();
+
+  if (error) {
+    // Not found / not owned — surface as null so the page can 404 gracefully.
+    return null;
+  }
+
+  return {
+    id: data.id,
+    title: data.title || "",
+    description: data.description || "",
+    author: data.author || "",
+    ownerName: data.owner_name || "",
+    ownerEmail: data.owner_email || "",
+    itunesCategory: data.itunes_category || "",
+    explicit: Boolean(data.explicit),
+    language: data.language || "en-us",
+  };
+}
+
+/**
+ * Save the podcast settings for a show owned by the current user.
+ * Only the podcast-metadata fields are updated (not title/description here).
+ */
+export async function updateShowSettings(
+  id: string,
+  settings: {
+    author: string;
+    ownerName: string;
+    ownerEmail: string;
+    itunesCategory: string;
+    explicit: boolean;
+    language: string;
+  }
+) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Not signed in");
+
+  const { data, error } = await supabase
+    .from("shows")
+    .update({
+      author: settings.author.trim() || null,
+      owner_name: settings.ownerName.trim() || null,
+      owner_email: settings.ownerEmail.trim() || null,
+      itunes_category: settings.itunesCategory.trim() || null,
+      explicit: settings.explicit,
+      language: settings.language.trim() || "en-us",
+    })
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
 export async function getEpisodes(): Promise<Episode[]> {
   const {
     data: { user },

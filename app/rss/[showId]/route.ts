@@ -58,7 +58,9 @@ export async function GET(request: Request, { params }: Props) {
 
   const { data: show } = await supabase
     .from("shows")
-    .select("id, title, description, cover_art_url")
+    .select(
+      "id, title, description, cover_art_url, author, owner_name, owner_email, itunes_category, explicit, language"
+    )
     .eq("id", showId)
     .single();
 
@@ -135,18 +137,18 @@ export async function GET(request: Request, { params }: Props) {
   const showLink = `${baseUrl}/public-shows/${show.id}`;
 
   // ---- Channel-level metadata ----
-  // NOTE: The following iTunes fields do not yet have dedicated columns in
-  // the schema. Sensible defaults are used and should be replaced by real
-  // per-show columns in a future migration (e.g. shows.author,
-  // shows.owner_email, shows.category, shows.explicit, shows.language).
+  // These now come from real per-show columns (added via migration
+  // add_show_podcast_metadata_columns). We keep sensible fallbacks so a show
+  // that hasn't filled in its Podcast Settings still produces a valid feed.
   const showTitle = show.title || "Untitled Show";
   const showDescription = show.description || "A SoundStage Live podcast.";
   const showImage = show.cover_art_url || `${baseUrl}/default-cover.png`;
-  const author = "SoundStage Live"; // TODO: shows.author
-  const ownerEmail = "podcast@soundstage.live"; // TODO: shows.owner_email
-  const category = "Society & Culture"; // TODO: shows.category (iTunes category)
-  const explicit = "false"; // TODO: shows.explicit
-  const language = "en-us"; // TODO: shows.language
+  const author = show.author?.trim() || showTitle;
+  const ownerName = show.owner_name?.trim() || author;
+  const ownerEmail = show.owner_email?.trim() || "";
+  const category = show.itunes_category?.trim() || "Society & Culture";
+  const explicit = show.explicit ? "true" : "false";
+  const language = show.language?.trim() || "en-us";
 
   const lastBuildDate = (
     episodes[0]?.created_at
@@ -233,7 +235,7 @@ export async function GET(request: Request, { params }: Props) {
     <itunes:summary>${xml(showDescription)}</itunes:summary>
     <itunes:type>episodic</itunes:type>
     <itunes:owner>
-      <itunes:name>${xml(author)}</itunes:name>
+      <itunes:name>${xml(ownerName)}</itunes:name>
       <itunes:email>${xml(ownerEmail)}</itunes:email>
     </itunes:owner>
     <itunes:image href="${xml(showImage)}" />

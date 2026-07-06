@@ -98,13 +98,21 @@ async function uploadShowCoverArt(
 </div>
   </div>
 
-  <a
-    href={`/public-shows/${show.id}`}
-    target="_blank"
-    className="rounded-lg bg-slate-900 px-5 py-3 font-semibold text-white"
-  >
-    View Public Show Page
-  </a>
+  <div className="flex shrink-0 flex-col gap-3">
+    <a
+      href={`/public-shows/${show.id}`}
+      target="_blank"
+      className="rounded-lg bg-slate-900 px-5 py-3 text-center font-semibold text-white"
+    >
+      View Public Show Page
+    </a>
+    <a
+      href={`/shows/${show.id}/settings`}
+      className="rounded-lg border border-slate-300 px-5 py-3 text-center font-semibold text-slate-700 hover:bg-slate-50"
+    >
+      Podcast Settings
+    </a>
+  </div>
 </div>
 
           <div className="mt-8 rounded-xl bg-white p-6 shadow">
