@@ -22,7 +22,10 @@ export default async function PublicEpisodePage({
   .eq("id", id)
   .single();
 
-  if (!episode) {
+  // Only Published episodes are public. If an episode was never published (or
+  // was unpublished), we treat it as "not found" so the public page never
+  // serves a draft or an expired recording URL.
+  if (!episode || episode.status !== "Published") {
     return (
       <main className="mx-auto max-w-4xl p-10">
         <h1 className="text-3xl font-bold">
