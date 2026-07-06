@@ -1,6 +1,7 @@
 "use client";
 
 import EpisodeNavigation from "@/components/episodes/EpisodeNavigation";
+import EpisodeMetaManager from "@/components/episodes/EpisodeMetaManager";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
@@ -728,6 +729,8 @@ export default function EpisodeEditorPage() {
               </span>
             </div>
           </div>
+
+          <EpisodeMetaManager episodeId={episode.id} />
 <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow">
   <h2 className="text-lg font-bold text-slate-900">
     Episode Progress

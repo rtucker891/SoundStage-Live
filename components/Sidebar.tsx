@@ -38,6 +38,10 @@ export default function Sidebar() {
           📺 Episodes
         </Link>
 
+        <Link href="/guests" className={linkClass("/guests")}>
+          👥 Guests
+        </Link>
+
         <Link href="/studio" className={linkClass("/studio")}>
           🎚 Studio
         </Link>

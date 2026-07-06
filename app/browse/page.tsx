@@ -4,11 +4,49 @@ import PublicNav from "@/components/public/PublicNav";
 
 export const dynamic = "force-dynamic";
 
-export default async function BrowseShowsPage() {
-  const { data } = await supabase
+type Props = {
+  searchParams: Promise<{ tag?: string }>;
+};
+
+export default async function BrowseShowsPage({ searchParams }: Props) {
+  const { tag: activeTag } = await searchParams;
+
+  // All distinct tags that are actually attached to at least one show, so the
+  // filter row only ever offers tags that lead somewhere.
+  const { data: tagLinks } = await supabase
+    .from("show_tags")
+    .select("tags(id, name, slug)");
+  const tagMap = new Map<string, { name: string; slug: string }>();
+  ((tagLinks ?? []) as unknown as {
+    tags: { id: string; name: string; slug: string } | null;
+  }[]).forEach((r) => {
+    if (r.tags) tagMap.set(r.tags.slug, { name: r.tags.name, slug: r.tags.slug });
+  });
+  const availableTags = Array.from(tagMap.values()).sort((a, b) =>
+    a.name.localeCompare(b.name)
+  );
+
+  // If a tag is selected, find the show ids carrying that tag.
+  let showIdFilter: string[] | null = null;
+  if (activeTag) {
+    const { data: matchRows } = await supabase
+      .from("show_tags")
+      .select("show_id, tags!inner(slug)")
+      .eq("tags.slug", activeTag);
+    showIdFilter = ((matchRows ?? []) as unknown as { show_id: string }[]).map(
+      (r) => r.show_id
+    );
+  }
+
+  let query = supabase
     .from("shows")
     .select("id, title, description, cover_art_url")
     .order("created_at", { ascending: false });
+  if (showIdFilter) {
+    // Empty list must yield no shows (not all shows), so guard against [].
+    query = query.in("id", showIdFilter.length ? showIdFilter : [""]);
+  }
+  const { data } = await query;
 
   const shows = data || [];
 
@@ -47,9 +85,41 @@ export default async function BrowseShowsPage() {
           </form>
         </section>
 
+        {availableTags.length > 0 && (
+          <div className="mt-8 flex flex-wrap items-center gap-2">
+            <Link
+              href="/browse"
+              className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+                !activeTag
+                  ? "bg-purple-600 text-white"
+                  : "border border-slate-300 text-slate-600 hover:border-purple-400"
+              }`}
+            >
+              All
+            </Link>
+            {availableTags.map((t) => (
+              <Link
+                key={t.slug}
+                href={`/browse?tag=${encodeURIComponent(t.slug)}`}
+                className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+                  activeTag === t.slug
+                    ? "bg-purple-600 text-white"
+                    : "border border-slate-300 text-slate-600 hover:border-purple-400"
+                }`}
+              >
+                #{t.name}
+              </Link>
+            ))}
+          </div>
+        )}
+
         <section className="mt-10 grid gap-6 md:grid-cols-3">
           {shows.length === 0 ? (
-            <p className="text-slate-500">No public shows available yet.</p>
+            <p className="text-slate-500">
+              {activeTag
+                ? `No shows tagged “${activeTag}” yet.`
+                : "No public shows available yet."}
+            </p>
           ) : (
             shows.map((show) => (
               <Link

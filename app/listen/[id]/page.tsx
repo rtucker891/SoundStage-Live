@@ -158,6 +158,36 @@ export default async function PublicEpisodePage({ params }: Props) {
     .limit(1);
   const segments: Segment[] = (transcripts?.[0]?.segments as Segment[]) ?? [];
 
+  // Tags (#33) attached to this episode.
+  const { data: tagRows } = await supabase
+    .from("episode_tags")
+    .select("tags(id, name, slug)")
+    .eq("episode_id", id);
+  const episodeTags = ((tagRows ?? []) as unknown as {
+    tags: { id: string; name: string; slug: string } | null;
+  }[])
+    .map((r) => r.tags)
+    .filter((t): t is { id: string; name: string; slug: string } => Boolean(t));
+
+  // Guest profiles (#19) linked to this episode.
+  const { data: guestRows } = await supabase
+    .from("episode_guests")
+    .select("guests(id, name, photo_url, deleted_at)")
+    .eq("episode_id", id);
+  const linkedGuests = ((guestRows ?? []) as unknown as {
+    guests: {
+      id: string;
+      name: string;
+      photo_url: string | null;
+      deleted_at: string | null;
+    } | null;
+  }[])
+    .map((r) => r.guests)
+    .filter(
+      (g): g is { id: string; name: string; photo_url: string | null; deleted_at: string | null } =>
+        Boolean(g) && !g!.deleted_at
+    );
+
   return (
     <main className="min-h-screen bg-slate-100">
       <PageViewTracker type="episode.viewed" entityId={episode.id} />
@@ -176,10 +206,43 @@ export default async function PublicEpisodePage({ params }: Props) {
 
           <h1 className="mt-3 text-5xl font-bold">{episode.title}</h1>
 
-          {episode.guest && (
-            <p className="mt-4 text-lg text-white/80">
-              Guest: {episode.guest}
-            </p>
+          {linkedGuests.length > 0 ? (
+            <div className="mt-4 flex flex-wrap gap-3">
+              {linkedGuests.map((g) => (
+                <a
+                  key={g.id}
+                  href={`/guest/${g.id}`}
+                  className="flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/25"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={g.photo_url || "/default-cover.png"}
+                    alt=""
+                    className="h-6 w-6 rounded-full object-cover"
+                  />
+                  {g.name}
+                </a>
+              ))}
+            </div>
+          ) : (
+            episode.guest && (
+              <p className="mt-4 text-lg text-white/80">
+                Guest: {episode.guest}
+              </p>
+            )
+          )}
+
+          {episodeTags.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {episodeTags.map((t) => (
+                <span
+                  key={t.id}
+                  className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white/80"
+                >
+                  #{t.name}
+                </span>
+              ))}
+            </div>
           )}
 
           {publishedDate && (

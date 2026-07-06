@@ -1176,3 +1176,458 @@ export async function uploadFileToStorage(
     url: signedUrlData.signedUrl,
   };
 }
+
+// =====================================================================
+// #33 Tags — free-form labels attached to shows and episodes.
+// Tags are owner-scoped (each creator has their own set) and power the
+// browse filters and public-page labels.
+// =====================================================================
+
+export type Tag = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
+// Turn a human label into a URL/lookup-safe slug: "True Crime" -> "true-crime".
+function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+}
+
+// List the current creator's tags.
+export async function getTags(): Promise<Tag[]> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("tags")
+    .select("id, name, slug")
+    .eq("user_id", user.id)
+    .order("name", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+// Create a tag (or return the existing one with the same slug). Idempotent so
+// callers can "ensure" a tag without worrying about duplicates.
+export async function createTag(name: string): Promise<Tag> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in");
+
+  const clean = name.trim();
+  if (!clean) throw new Error("Tag name cannot be empty.");
+  const slug = slugify(clean);
+
+  // Try to find an existing tag first (unique per user_id+slug).
+  const { data: existing } = await supabase
+    .from("tags")
+    .select("id, name, slug")
+    .eq("user_id", user.id)
+    .eq("slug", slug)
+    .maybeSingle();
+  if (existing) return existing;
+
+  const { data, error } = await supabase
+    .from("tags")
+    .insert({ user_id: user.id, name: clean, slug })
+    .select("id, name, slug")
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function deleteTag(tagId: string): Promise<void> {
+  const { error } = await supabase.from("tags").delete().eq("id", tagId);
+  if (error) throw new Error(error.message);
+}
+
+// --- Tag <-> Show links ---
+
+export async function getShowTags(showId: string): Promise<Tag[]> {
+  const { data, error } = await supabase
+    .from("show_tags")
+    .select("tags(id, name, slug)")
+    .eq("show_id", showId);
+  if (error) throw new Error(error.message);
+  // Supabase types embedded relations as arrays; the runtime value is a single
+  // object. Cast through unknown to the shape we actually get back.
+  const rows = (data ?? []) as unknown as { tags: Tag | null }[];
+  return rows.map((row) => row.tags).filter((t): t is Tag => Boolean(t));
+}
+
+export async function setShowTags(
+  showId: string,
+  tagIds: string[]
+): Promise<void> {
+  // Replace the show's tags with the provided set: clear then insert.
+  const { error: delErr } = await supabase
+    .from("show_tags")
+    .delete()
+    .eq("show_id", showId);
+  if (delErr) throw new Error(delErr.message);
+
+  if (tagIds.length === 0) return;
+  const rows = tagIds.map((tag_id) => ({ show_id: showId, tag_id }));
+  const { error: insErr } = await supabase.from("show_tags").insert(rows);
+  if (insErr) throw new Error(insErr.message);
+}
+
+// --- Tag <-> Episode links ---
+
+export async function getEpisodeTags(episodeId: string): Promise<Tag[]> {
+  const { data, error } = await supabase
+    .from("episode_tags")
+    .select("tags(id, name, slug)")
+    .eq("episode_id", episodeId);
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []) as unknown as { tags: Tag | null }[];
+  return rows.map((row) => row.tags).filter((t): t is Tag => Boolean(t));
+}
+
+export async function setEpisodeTags(
+  episodeId: string,
+  tagIds: string[]
+): Promise<void> {
+  const { error: delErr } = await supabase
+    .from("episode_tags")
+    .delete()
+    .eq("episode_id", episodeId);
+  if (delErr) throw new Error(delErr.message);
+
+  if (tagIds.length === 0) return;
+  const rows = tagIds.map((tag_id) => ({ episode_id: episodeId, tag_id }));
+  const { error: insErr } = await supabase.from("episode_tags").insert(rows);
+  if (insErr) throw new Error(insErr.message);
+}
+
+// =====================================================================
+// #19 Guest profiles — real guest records with bio, photo, and links,
+// linkable to episodes, each with a public profile page.
+// =====================================================================
+
+export type Guest = {
+  id: string;
+  name: string;
+  slug: string;
+  bio: string | null;
+  photoUrl: string | null;
+  websiteUrl: string | null;
+  twitterUrl: string | null;
+  linkedinUrl: string | null;
+};
+
+type GuestRow = {
+  id: string;
+  name: string;
+  slug: string;
+  bio: string | null;
+  photo_url: string | null;
+  website_url: string | null;
+  twitter_url: string | null;
+  linkedin_url: string | null;
+};
+
+function mapGuest(row: GuestRow): Guest {
+  return {
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    bio: row.bio,
+    photoUrl: row.photo_url,
+    websiteUrl: row.website_url,
+    twitterUrl: row.twitter_url,
+    linkedinUrl: row.linkedin_url,
+  };
+}
+
+export async function getGuests(): Promise<Guest[]> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("guests")
+    .select("*")
+    .eq("user_id", user.id)
+    .is("deleted_at", null)
+    .order("name", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data as GuestRow[]).map(mapGuest);
+}
+
+export async function getGuest(guestId: string): Promise<Guest | null> {
+  const { data, error } = await supabase
+    .from("guests")
+    .select("*")
+    .eq("id", guestId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? mapGuest(data as GuestRow) : null;
+}
+
+export type GuestInput = {
+  name: string;
+  bio?: string;
+  photoUrl?: string;
+  websiteUrl?: string;
+  twitterUrl?: string;
+  linkedinUrl?: string;
+};
+
+export async function createGuest(input: GuestInput): Promise<Guest> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in");
+
+  const name = input.name.trim();
+  if (!name) throw new Error("Guest name is required.");
+
+  const { data, error } = await supabase
+    .from("guests")
+    .insert({
+      user_id: user.id,
+      name,
+      slug: slugify(name) || crypto.randomUUID().slice(0, 8),
+      bio: input.bio?.trim() || null,
+      photo_url: input.photoUrl?.trim() || null,
+      website_url: input.websiteUrl?.trim() || null,
+      twitter_url: input.twitterUrl?.trim() || null,
+      linkedin_url: input.linkedinUrl?.trim() || null,
+    })
+    .select("*")
+    .single();
+
+  if (error) throw new Error(error.message);
+  return mapGuest(data as GuestRow);
+}
+
+export async function updateGuest(
+  guestId: string,
+  input: GuestInput
+): Promise<void> {
+  const { error } = await supabase
+    .from("guests")
+    .update({
+      name: input.name.trim(),
+      bio: input.bio?.trim() || null,
+      photo_url: input.photoUrl?.trim() || null,
+      website_url: input.websiteUrl?.trim() || null,
+      twitter_url: input.twitterUrl?.trim() || null,
+      linkedin_url: input.linkedinUrl?.trim() || null,
+    })
+    .eq("id", guestId);
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteGuest(guestId: string): Promise<void> {
+  // Soft-delete to match shows/episodes convention.
+  const { error } = await supabase
+    .from("guests")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", guestId);
+  if (error) throw new Error(error.message);
+}
+
+// --- Guest <-> Episode links ---
+
+export async function getEpisodeGuests(episodeId: string): Promise<Guest[]> {
+  const { data, error } = await supabase
+    .from("episode_guests")
+    .select("guests(*)")
+    .eq("episode_id", episodeId);
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []) as unknown as { guests: GuestRow | null }[];
+  return rows
+    .map((row) => row.guests)
+    .filter((g): g is GuestRow => Boolean(g))
+    .map(mapGuest);
+}
+
+export async function setEpisodeGuests(
+  episodeId: string,
+  guestIds: string[]
+): Promise<void> {
+  const { error: delErr } = await supabase
+    .from("episode_guests")
+    .delete()
+    .eq("episode_id", episodeId);
+  if (delErr) throw new Error(delErr.message);
+
+  if (guestIds.length === 0) return;
+  const rows = guestIds.map((guest_id) => ({ episode_id: episodeId, guest_id }));
+  const { error: insErr } = await supabase
+    .from("episode_guests")
+    .insert(rows);
+  if (insErr) throw new Error(insErr.message);
+}
+
+// Episodes a guest has appeared in (published only — for the public profile).
+export async function getGuestEpisodes(guestId: string): Promise<
+  { id: string; title: string; showId: string; publishedAt: string | null }[]
+> {
+  const { data, error } = await supabase
+    .from("episode_guests")
+    .select("episodes(id, title, show_id, published_at, status, deleted_at)")
+    .eq("guest_id", guestId);
+  if (error) throw new Error(error.message);
+
+  type EpRow = {
+    id: string;
+    title: string;
+    show_id: string;
+    published_at: string | null;
+    status: string;
+    deleted_at: string | null;
+  };
+  const rows = (data ?? []) as unknown as { episodes: EpRow | null }[];
+  return rows
+    .map((row) => row.episodes)
+    .filter(
+      (e): e is EpRow =>
+        Boolean(e) && e!.status === "Published" && !e!.deleted_at
+    )
+    .map((e) => ({
+      id: e.id,
+      title: e.title,
+      showId: e.show_id,
+      publishedAt: e.published_at,
+    }));
+}
+
+// =====================================================================
+// #20 Guest invitation system — FOUNDATION.
+// NOTE: Actually EMAILING the invite is deferred to Phase 9 (needs the
+// transactional-email service, #41). Everything else is built: an invite
+// record with a secure token, creation by the owner, and server-side
+// acceptance by token. Until Phase 9, createGuestInvite returns a shareable
+// link the creator can send manually. When email lands, call the email
+// sender right after createGuestInvite — that is the only missing wire.
+// =====================================================================
+
+export type GuestInvite = {
+  id: string;
+  guestName: string;
+  guestEmail: string;
+  token: string;
+  status: string;
+  episodeId: string | null;
+  message: string | null;
+  createdAt: string;
+  respondedAt: string | null;
+};
+
+type GuestInviteRow = {
+  id: string;
+  guest_name: string;
+  guest_email: string;
+  token: string;
+  status: string;
+  episode_id: string | null;
+  message: string | null;
+  created_at: string;
+  responded_at: string | null;
+};
+
+function mapInvite(r: GuestInviteRow): GuestInvite {
+  return {
+    id: r.id,
+    guestName: r.guest_name,
+    guestEmail: r.guest_email,
+    token: r.token,
+    status: r.status,
+    episodeId: r.episode_id,
+    message: r.message,
+    createdAt: r.created_at,
+    respondedAt: r.responded_at,
+  };
+}
+
+// Generate a URL-safe random token for the invite link.
+function makeInviteToken(): string {
+  // 32 hex chars from two UUIDs — plenty of entropy, no special chars.
+  return (
+    crypto.randomUUID().replace(/-/g, "") +
+    crypto.randomUUID().replace(/-/g, "")
+  ).slice(0, 40);
+}
+
+export async function getGuestInvites(): Promise<GuestInvite[]> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("guest_invites")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data as GuestInviteRow[]).map(mapInvite);
+}
+
+export async function createGuestInvite(input: {
+  guestName: string;
+  guestEmail: string;
+  episodeId?: string | null;
+  message?: string;
+}): Promise<{ invite: GuestInvite; acceptUrl: string }> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in");
+
+  const guestName = input.guestName.trim();
+  const guestEmail = input.guestEmail.trim();
+  if (!guestName) throw new Error("Guest name is required.");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
+    throw new Error("Please enter a valid email address.");
+  }
+
+  const token = makeInviteToken();
+
+  const { data, error } = await supabase
+    .from("guest_invites")
+    .insert({
+      user_id: user.id,
+      guest_name: guestName,
+      guest_email: guestEmail,
+      episode_id: input.episodeId || null,
+      message: input.message?.trim() || null,
+      token,
+      status: "pending",
+    })
+    .select("*")
+    .single();
+  if (error) throw new Error(error.message);
+
+  // Phase 9 hook: send this URL to guestEmail via transactional email.
+  const origin =
+    typeof window !== "undefined" ? window.location.origin : "";
+  const acceptUrl = `${origin}/invite/${token}`;
+
+  return { invite: mapInvite(data as GuestInviteRow), acceptUrl };
+}
+
+export async function cancelGuestInvite(inviteId: string): Promise<void> {
+  const { error } = await supabase
+    .from("guest_invites")
+    .update({ status: "cancelled", responded_at: new Date().toISOString() })
+    .eq("id", inviteId);
+  if (error) throw new Error(error.message);
+}
