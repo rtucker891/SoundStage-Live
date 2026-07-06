@@ -52,17 +52,25 @@ export default function EpisodesPage() {
 
   useEffect(() => {
     async function load() {
-      const episodeData = await getEpisodes();
-      const assetData = await getAssets();
-      const transcriptData = await getTranscripts();
-      const showNoteData = await getShowNotes();
+      try {
+        // Fetch all four data sets at the same time instead of one after
+        // another. They don't depend on each other, so running them in
+        // parallel means we only wait for the slowest one, not the sum of all.
+        const [episodeData, assetData, transcriptData, showNoteData] =
+          await Promise.all([
+            getEpisodes(),
+            getAssets(),
+            getTranscripts(),
+            getShowNotes(),
+          ]);
 
-      setEpisodes(episodeData);
-      setAssets(assetData);
-      setTranscripts(transcriptData);
-      setShowNotes(showNoteData);
-
-      setLoading(false);
+        setEpisodes(episodeData);
+        setAssets(assetData);
+        setTranscripts(transcriptData);
+        setShowNotes(showNoteData);
+      } finally {
+        setLoading(false);
+      }
     }
 
     load();
