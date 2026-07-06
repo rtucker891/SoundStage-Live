@@ -154,7 +154,7 @@ export async function GET(request: Request, { params }: Props) {
   const { data: show } = await supabase
     .from("shows")
     .select(
-      "id, title, description, cover_art_url, author, owner_name, owner_email, itunes_category, explicit, language"
+      "id, title, description, cover_art_url, published_cover_art_url, author, owner_name, owner_email, itunes_category, itunes_subcategory, explicit, language"
     )
     .eq("id", showId)
     .is("deleted_at", null)
@@ -263,11 +263,17 @@ export async function GET(request: Request, { params }: Props) {
   // that hasn't filled in its Podcast Settings still produces a valid feed.
   const showTitle = show.title || "Untitled Show";
   const showDescription = show.description || "A SoundStage Live podcast.";
-  const showImage = show.cover_art_url || `${baseUrl}/default-cover.png`;
+  // Prefer the PERMANENT published cover art (public bucket, never expires).
+  // Fall back to the show's editable cover art, then a bundled default file.
+  const showImage =
+    show.published_cover_art_url ||
+    show.cover_art_url ||
+    `${baseUrl}/default-cover.png`;
   const author = show.author?.trim() || showTitle;
   const ownerName = show.owner_name?.trim() || author;
   const ownerEmail = show.owner_email?.trim() || "";
   const category = show.itunes_category?.trim() || "Society & Culture";
+  const subcategory = show.itunes_subcategory?.trim() || "";
   const explicit = show.explicit ? "true" : "false";
   const language = show.language?.trim() || "en-us";
 
@@ -388,7 +394,13 @@ export async function GET(request: Request, { params }: Props) {
       <itunes:email>${xml(ownerEmail)}</itunes:email>
     </itunes:owner>
     <itunes:image href="${xml(showImage)}" />
-    <itunes:category text="${xml(category)}" />
+    ${
+      subcategory
+        ? `<itunes:category text="${xml(category)}">
+      <itunes:category text="${xml(subcategory)}" />
+    </itunes:category>`
+        : `<itunes:category text="${xml(category)}" />`
+    }
     <itunes:explicit>${explicit}</itunes:explicit>
     ${items}
   </channel>

@@ -154,8 +154,10 @@ export type PodcastSettings = {
   ownerName: string;
   ownerEmail: string;
   itunesCategory: string;
+  itunesSubcategory: string;
   explicit: boolean;
   language: string;
+  publishedCoverArtUrl: string;
 };
 
 /**
@@ -174,7 +176,7 @@ export async function getShowSettings(
   const { data, error } = await supabase
     .from("shows")
     .select(
-      "id, title, description, author, owner_name, owner_email, itunes_category, explicit, language"
+      "id, title, description, author, owner_name, owner_email, itunes_category, itunes_subcategory, explicit, language, published_cover_art_url"
     )
     .eq("id", id)
     .eq("user_id", user.id)
@@ -193,8 +195,10 @@ export async function getShowSettings(
     ownerName: data.owner_name || "",
     ownerEmail: data.owner_email || "",
     itunesCategory: data.itunes_category || "",
+    itunesSubcategory: data.itunes_subcategory || "",
     explicit: Boolean(data.explicit),
     language: data.language || "en-us",
+    publishedCoverArtUrl: data.published_cover_art_url || "",
   };
 }
 
@@ -209,6 +213,7 @@ export async function updateShowSettings(
     ownerName: string;
     ownerEmail: string;
     itunesCategory: string;
+    itunesSubcategory: string;
     explicit: boolean;
     language: string;
   }
@@ -226,6 +231,7 @@ export async function updateShowSettings(
       owner_name: settings.ownerName.trim() || null,
       owner_email: settings.ownerEmail.trim() || null,
       itunes_category: settings.itunesCategory.trim() || null,
+      itunes_subcategory: settings.itunesSubcategory.trim() || null,
       explicit: settings.explicit,
       language: settings.language.trim() || "en-us",
     })
