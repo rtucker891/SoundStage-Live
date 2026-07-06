@@ -24,6 +24,101 @@ function xml(value: unknown): string {
 }
 
 /**
+ * Strip common markdown markers (bold, headings, list bullets, numbering)
+ * from a line so it reads as clean plain text.
+ */
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, "$1") // **bold** -> bold
+    .replace(/\*(.*?)\*/g, "$1") // *italic* -> italic
+    .replace(/`(.*?)`/g, "$1") // `code` -> code
+    .replace(/^#{1,6}\s*/, "") // # heading markers
+    .replace(/^\s*[-*+]\s+/, "") // - bullet markers
+    .replace(/^\s*\d+\.\s+/, "") // 1. numbered markers
+    .trim();
+}
+
+/**
+ * The AI show-note summaries are structured as numbered sections like
+ * "1. Episode Summary", "2. Key Discussion Points", "3. Main Takeaways".
+ * This parses that structure into named sections we can render nicely.
+ */
+function parseShowNote(summary: string): {
+  shortSummary: string;
+  sections: { heading: string; lines: string[] }[];
+} {
+  const rawLines = summary.split(/\r?\n/);
+  const sections: { heading: string; lines: string[] }[] = [];
+  let current: { heading: string; lines: string[] } | null = null;
+
+  // A section heading looks like "1. Episode Summary" or "2. **Key Points**".
+  const headingRe = /^\s*\d+\.\s*\**\s*([A-Za-z][^:*]*?)\s*:?\**\s*$/;
+
+  for (const raw of rawLines) {
+    const line = raw.trim();
+    if (!line) continue;
+
+    const headingMatch = line.match(headingRe);
+    if (headingMatch) {
+      current = { heading: stripMarkdown(headingMatch[1]), lines: [] };
+      sections.push(current);
+      continue;
+    }
+
+    const clean = stripMarkdown(line);
+    if (!clean) continue;
+    if (current) {
+      current.lines.push(clean);
+    } else {
+      // Text before any heading -> treat as an intro section.
+      current = { heading: "", lines: [clean] };
+      sections.push(current);
+    }
+  }
+
+  // Short summary = first section that reads like a summary paragraph,
+  // else the first line of content we have.
+  const summarySection =
+    sections.find((s) => /summary/i.test(s.heading)) ??
+    sections.find((s) => s.lines.length > 0);
+  const shortSummary =
+    summarySection?.lines.join(" ").trim() ||
+    stripMarkdown(summary).slice(0, 400);
+
+  return { shortSummary, sections };
+}
+
+/**
+ * Render parsed show-note sections into clean HTML for <content:encoded>.
+ * Bullet-style sections become <ul>; prose sections become <p>.
+ */
+function renderNotesHtml(
+  sections: { heading: string; lines: string[] }[]
+): string {
+  const parts: string[] = [];
+  for (const section of sections) {
+    if (section.heading) {
+      parts.push(`<h3>${xml(section.heading)}</h3>`);
+    }
+    // If most lines are short, render as a list; otherwise as paragraphs.
+    const looksLikeList =
+      section.lines.length > 1 &&
+      section.lines.every((l) => l.length < 200);
+    if (looksLikeList) {
+      const items = section.lines
+        .map((l) => `<li>${xml(l)}</li>`)
+        .join("");
+      parts.push(`<ul>${items}</ul>`);
+    } else {
+      for (const l of section.lines) {
+        parts.push(`<p>${xml(l)}</p>`);
+      }
+    }
+  }
+  return parts.join("");
+}
+
+/**
  * Format a duration given in seconds as HH:MM:SS (or MM:SS), per the
  * iTunes <itunes:duration> spec. Returns null when unknown (0/missing),
  * so we can omit the tag rather than emit a misleading 00:00.
@@ -132,6 +227,30 @@ export async function GET(request: Request, { params }: Props) {
     }
   }
 
+  // Latest show notes per episode. Episodes can have multiple show_notes rows
+  // (e.g. the AI generator was re-run), so we keep only the newest one.
+  const showNotesByEpisode = new Map<
+    string,
+    { summary: string | null; bullet_points: unknown }
+  >();
+
+  if (episodeIds.length > 0) {
+    const { data: notes } = await supabase
+      .from("show_notes")
+      .select("episode_id, summary, bullet_points, created_at")
+      .in("episode_id", episodeIds)
+      .order("created_at", { ascending: false });
+
+    for (const n of notes ?? []) {
+      if (n.episode_id && !showNotesByEpisode.has(n.episode_id)) {
+        showNotesByEpisode.set(n.episode_id, {
+          summary: n.summary,
+          bullet_points: n.bullet_points,
+        });
+      }
+    }
+  }
+
   const baseUrl = new URL(request.url).origin;
   const feedUrl = `${baseUrl}/rss/${show.id}`;
   const showLink = `${baseUrl}/public-shows/${show.id}`;
@@ -163,7 +282,25 @@ export async function GET(request: Request, { params }: Props) {
       const episodeLink = `${baseUrl}/listen/${episode.id}`;
       const pubDate = new Date(episode.created_at).toUTCString();
       const guest = episode.guest ? `Guest: ${episode.guest}` : "";
-      const description = guest || showDescription;
+
+      // Build the episode description + rich notes from the latest show note.
+      // Fall back gracefully when an episode has no notes yet.
+      const note = showNotesByEpisode.get(episode.id);
+      let description: string;
+      let contentHtml = "";
+      if (note?.summary && note.summary.trim()) {
+        const { shortSummary, sections } = parseShowNote(note.summary);
+        description = shortSummary || showDescription;
+        const html = renderNotesHtml(sections);
+        if (episode.guest) {
+          contentHtml = `<p><em>Guest: ${xml(episode.guest)}</em></p>${html}`;
+        } else {
+          contentHtml = html;
+        }
+      } else {
+        description = guest || showDescription;
+      }
+
       // Prefer the permanent published artwork; fall back to episode/show art.
       const episodeImage =
         episode.published_artwork_url ||
@@ -193,10 +330,20 @@ export async function GET(request: Request, { params }: Props) {
         )}" length="${length}" type="${xml(type)}" />`;
       }
 
+      // <content:encoded> holds the rich HTML notes (shown in the full
+      // episode view). We wrap it in CDATA so the HTML tags aren't escaped.
+      // Guard the CDATA: a literal "]]>" inside the HTML would close the
+      // section early and corrupt the feed, so split it safely.
+      const safeContent = contentHtml.replace(/]]>/g, "]]]]><![CDATA[>");
+      const contentEncoded = safeContent
+        ? `<content:encoded><![CDATA[${safeContent}]]></content:encoded>`
+        : "";
+
       return `
     <item>
       <title>${xml(episode.title)}</title>
       <description>${xml(description)}</description>
+      ${contentEncoded}
       <link>${xml(episodeLink)}</link>
       <guid isPermaLink="false">${xml(episode.id)}</guid>
       <pubDate>${pubDate}</pubDate>
