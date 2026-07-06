@@ -157,6 +157,7 @@ export async function GET(request: Request, { params }: Props) {
       "id, title, description, cover_art_url, author, owner_name, owner_email, itunes_category, explicit, language"
     )
     .eq("id", showId)
+    .is("deleted_at", null)
     .single();
 
   if (!show) {
@@ -170,6 +171,7 @@ export async function GET(request: Request, { params }: Props) {
     )
     .eq("show_id", showId)
     .eq("status", "Published")
+    .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
   const episodes = episodesData ?? [];

@@ -20,6 +20,7 @@ export async function getShows(): Promise<Show[]> {
     .from("shows")
     .select("*")
     .eq("user_id", user.id)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -33,6 +34,74 @@ export async function getShows(): Promise<Show[]> {
     status: show.status || "Draft",
     episodes: 0,
   }));
+}
+
+/**
+ * Soft-delete a show: sets deleted_at so it disappears from the app and
+ * the public RSS feed, but the row (and its data) stays in the database.
+ * Episodes belonging to the show are also soft-deleted so they vanish too.
+ */
+export async function deleteShow(id: string) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Not signed in");
+  }
+
+  const now = new Date().toISOString();
+
+  // Soft-delete the show's episodes first.
+  const { error: epError } = await supabase
+    .from("episodes")
+    .update({ deleted_at: now })
+    .eq("show_id", id)
+    .eq("user_id", user.id)
+    .is("deleted_at", null);
+
+  if (epError) {
+    throw new Error(epError.message);
+  }
+
+  // Soft-delete the show itself.
+  const { error } = await supabase
+    .from("shows")
+    .update({ deleted_at: now })
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return { id };
+}
+
+/**
+ * Soft-delete a single episode: sets deleted_at so it disappears from the
+ * app and the public RSS feed, but the row stays in the database.
+ */
+export async function deleteEpisode(id: string) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Not signed in");
+  }
+
+  const { error } = await supabase
+    .from("episodes")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return { id };
 }
 
 export async function createShow(data: {
@@ -183,6 +252,7 @@ export async function getEpisodes(): Promise<Episode[]> {
     .from("episodes")
     .select("id, title, guest, status, shows(title)")
     .eq("user_id", user.id)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
   if (error) {

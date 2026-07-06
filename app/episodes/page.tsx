@@ -7,6 +7,7 @@ import AppShell from "@/components/AppShell";
 import CreateEpisodeForm from "@/components/episodes/CreateEpisodeForm";
 
 import {
+  deleteEpisode,
   getAssets,
   getEpisodes,
   getShowNotes,
@@ -26,6 +27,28 @@ export default function EpisodesPage() {
   const [showNotes, setShowNotes] = useState<ShowNote[]>([]);
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function handleDeleteEpisode(episode: Episode) {
+    const ok = window.confirm(
+      `Delete "${episode.title}"? It will be removed from the app and your public podcast feed.`
+    );
+    if (!ok) return;
+
+    setDeletingId(episode.id);
+    try {
+      await deleteEpisode(episode.id);
+      setEpisodes((prev) => prev.filter((e) => e.id !== episode.id));
+    } catch (err) {
+      alert(
+        `Could not delete episode: ${
+          err instanceof Error ? err.message : "Unknown error"
+        }`
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   useEffect(() => {
     async function load() {
@@ -265,12 +288,23 @@ const inProductionCount = episodes.length - publishedCount;
                       </div>
                     </div>
 
-                    <Link
-                      href={`/episodes/${episode.id}`}
-                      className="mt-5 inline-block rounded-lg bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-4 py-2 text-sm font-semibold text-white"
-                    >
-                      Open Episode
-                    </Link>
+                    <div className="mt-5 flex flex-wrap items-center gap-2">
+                      <Link
+                        href={`/episodes/${episode.id}`}
+                        className="inline-block rounded-lg bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-4 py-2 text-sm font-semibold text-white"
+                      >
+                        Open Episode
+                      </Link>
+
+                      <button
+                        type="button"
+                        disabled={deletingId === episode.id}
+                        onClick={() => handleDeleteEpisode(episode)}
+                        className="inline-block rounded-lg border border-red-300 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {deletingId === episode.id ? "Deleting..." : "Delete"}
+                      </button>
+                    </div>
                   </div>
                 );
               })}

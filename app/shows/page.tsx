@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import AppShell from "@/components/AppShell";
 import CreateShowForm from "@/components/shows/CreateShowForm";
 
-import { getShows } from "@/lib/api";
+import { deleteShow, getShows } from "@/lib/api";
 
 import type { Show } from "@/types/show";
 
@@ -14,11 +14,34 @@ export default function ShowsPage() {
   const [shows, setShows] = useState<Show[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Which show is pending delete confirmation, and the text typed so far.
+  const [confirmingShowId, setConfirmingShowId] = useState<string | null>(null);
+  const [confirmText, setConfirmText] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   useEffect(() => {
     getShows()
       .then((data) => setShows(data))
       .finally(() => setLoading(false));
   }, []);
+
+  async function handleDeleteShow(show: Show) {
+    setDeletingId(show.id);
+    try {
+      await deleteShow(show.id);
+      setShows((prev) => prev.filter((s) => s.id !== show.id));
+      setConfirmingShowId(null);
+      setConfirmText("");
+    } catch (err) {
+      alert(
+        `Could not delete show: ${
+          err instanceof Error ? err.message : "Unknown error"
+        }`
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <AppShell>
@@ -71,12 +94,74 @@ export default function ShowsPage() {
                   </p>
                 </div>
 
-                <Link
-                  href={`/shows/${show.id}`}
-                  className="mt-6 inline-block rounded-lg bg-slate-950 px-5 py-3 font-semibold text-white"
-                >
-                  Open Show
-                </Link>
+                <div className="mt-6 flex flex-wrap items-center gap-3">
+                  <Link
+                    href={`/shows/${show.id}`}
+                    className="inline-block rounded-lg bg-slate-950 px-5 py-3 font-semibold text-white"
+                  >
+                    Open Show
+                  </Link>
+
+                  {confirmingShowId === show.id ? null : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setConfirmingShowId(show.id);
+                        setConfirmText("");
+                      }}
+                      className="inline-block rounded-lg border border-red-300 px-5 py-3 font-semibold text-red-600 hover:bg-red-50"
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
+
+                {confirmingShowId === show.id && (
+                  <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4">
+                    <p className="text-sm font-semibold text-red-700">
+                      Delete this show and all its episodes?
+                    </p>
+                    <p className="mt-1 text-sm text-red-600">
+                      This removes the show from the app and your public
+                      podcast feed. Type the show title to confirm:
+                    </p>
+                    <p className="mt-2 text-sm font-mono font-semibold text-slate-800">
+                      {show.title}
+                    </p>
+                    <input
+                      type="text"
+                      value={confirmText}
+                      onChange={(e) => setConfirmText(e.target.value)}
+                      placeholder="Type the show title"
+                      className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    />
+                    <div className="mt-3 flex gap-3">
+                      <button
+                        type="button"
+                        disabled={
+                          confirmText.trim() !== show.title ||
+                          deletingId === show.id
+                        }
+                        onClick={() => handleDeleteShow(show)}
+                        className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {deletingId === show.id
+                          ? "Deleting..."
+                          : "Delete show"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setConfirmingShowId(null);
+                          setConfirmText("");
+                        }}
+                        className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
