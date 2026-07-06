@@ -11,6 +11,8 @@ import {
   getShows,
   getTranscripts,
   getShowNotes,
+  getAnalyticsTotals,
+  type AnalyticsTotal,
 } from "@/lib/api";
 
 import type { Episode } from "@/types/episode";
@@ -24,6 +26,7 @@ const [loading, setLoading] = useState(true);
 const [assetCount, setAssetCount] = useState(0);
 const [transcriptCount, setTranscriptCount] = useState(0);
 const [showNoteCount, setShowNoteCount] = useState(0);
+const [analyticsTotals, setAnalyticsTotals] = useState<AnalyticsTotal[]>([]);
 useEffect(() => {
   Promise.all([
     getShows(),
@@ -31,6 +34,7 @@ useEffect(() => {
     getAssets(),
     getTranscripts(),
     getShowNotes(),
+    getAnalyticsTotals(30),
   ])
     .then(
       ([
@@ -39,16 +43,22 @@ useEffect(() => {
         assetsData,
         transcriptsData,
         showNotesData,
+        totalsData,
       ]) => {
         setShows(showsData);
         setEpisodes(episodesData);
         setAssetCount(assetsData.length);
         setTranscriptCount(transcriptsData.length);
         setShowNoteCount(showNotesData.length);
+        setAnalyticsTotals(totalsData);
       }
     )
     .finally(() => setLoading(false));
 }, []);
+// Pull the last-30-days count for one event type (0 if none recorded).
+function recentCount(type: string): number {
+  return analyticsTotals.find((t) => t.type === type)?.recent ?? 0;
+}
 const publishedCount = episodes.filter(
   (episode) => episode.status === "Published"
 ).length;
@@ -91,6 +101,51 @@ if (loading) {
 <StatCard title="Episodes" value={episodes.length} />
 <StatCard title="Published" value={publishedCount} />
 <StatCard title="Assets" value={assetCount} />
+      </div>
+
+      {/* Audience KPIs (Phase 7 #32) — last 30 days, from the events table. */}
+      <div className="mt-8 rounded-2xl border border-violet-200 bg-gradient-to-br from-white to-violet-50 p-6 shadow">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-violet-600">
+              Audience
+            </p>
+            <h3 className="text-2xl font-bold">Last 30 days</h3>
+          </div>
+          <Link
+            href="/analytics"
+            className="rounded-full bg-violet-100 px-4 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-200"
+          >
+            View analytics →
+          </Link>
+        </div>
+
+        <div className="mt-6 grid gap-4 md:grid-cols-4">
+          <div className="rounded-xl bg-white p-4 shadow-sm">
+            <p className="text-sm text-slate-500">Listens</p>
+            <p className="mt-1 text-2xl font-bold">
+              {recentCount("episode.listened").toLocaleString()}
+            </p>
+          </div>
+          <div className="rounded-xl bg-white p-4 shadow-sm">
+            <p className="text-sm text-slate-500">Episode views</p>
+            <p className="mt-1 text-2xl font-bold">
+              {recentCount("episode.viewed").toLocaleString()}
+            </p>
+          </div>
+          <div className="rounded-xl bg-white p-4 shadow-sm">
+            <p className="text-sm text-slate-500">Show views</p>
+            <p className="mt-1 text-2xl font-bold">
+              {recentCount("show.viewed").toLocaleString()}
+            </p>
+          </div>
+          <div className="rounded-xl bg-white p-4 shadow-sm">
+            <p className="text-sm text-slate-500">Downloads</p>
+            <p className="mt-1 text-2xl font-bold">
+              {recentCount("episode.downloaded").toLocaleString()}
+            </p>
+          </div>
+        </div>
       </div>
 <div className="mt-8 rounded-2xl border border-indigo-200 bg-gradient-to-br from-white to-indigo-50 p-6 shadow">
   <div className="flex items-center justify-between">
@@ -166,8 +221,8 @@ if (loading) {
       🚀<br />Publish
     </Link>
 
-    <Link href="/settings" className="rounded-xl bg-white p-4 text-center shadow-sm hover:shadow">
-      ⚙<br />Settings
+    <Link href="/analytics" className="rounded-xl bg-white p-4 text-center shadow-sm hover:shadow">
+      📊<br />Analytics
     </Link>
   </div>
 </div>

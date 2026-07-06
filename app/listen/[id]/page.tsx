@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import ShareButton from "@/components/public/ShareButton";
+import PageViewTracker from "@/components/public/PageViewTracker";
+import AudioPlayer from "@/components/public/AudioPlayer";
 
 export const dynamic = "force-dynamic";
 
@@ -158,6 +160,7 @@ export default async function PublicEpisodePage({ params }: Props) {
 
   return (
     <main className="min-h-screen bg-slate-100">
+      <PageViewTracker type="episode.viewed" entityId={episode.id} />
       <div className="mx-auto max-w-5xl p-8">
         <Link
           href={`/public-shows/${episode.show_id}`}
@@ -209,10 +212,11 @@ export default async function PublicEpisodePage({ params }: Props) {
           <h2 className="text-2xl font-bold">Listen Now</h2>
 
           {audioSrc ? (
-            <audio controls className="mt-6 w-full">
-              <source src={audioSrc} type={audioType} />
-              Your browser does not support the audio element.
-            </audio>
+            <AudioPlayer
+              src={audioSrc}
+              type={audioType}
+              episodeId={episode.id}
+            />
           ) : (
             <p className="mt-4 text-slate-500">No recording available.</p>
           )}

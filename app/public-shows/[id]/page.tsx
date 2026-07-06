@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import ShareButton from "@/components/public/ShareButton";
+import PageViewTracker from "@/components/public/PageViewTracker";
 
 export const dynamic = "force-dynamic";
 
@@ -108,6 +109,7 @@ export default async function PublicShowPage({ params }: Props) {
 
   return (
     <main className="min-h-screen bg-slate-100">
+      <PageViewTracker type="show.viewed" entityId={show.id} />
       <div className="mx-auto max-w-5xl p-8">
         <Link
           href="/browse"

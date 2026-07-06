@@ -293,6 +293,93 @@ export async function getEpisodeChapters(
   return data.chapters as { startTime: number; title: string }[];
 }
 
+// ---- Analytics (Phase 7) ----
+// These read from the events table via SECURITY DEFINER Postgres functions.
+// Each is scoped to the signed-in user, so a creator only sees their own data.
+
+export type AnalyticsDailyRow = { day: string; type: string; count: number };
+export type AnalyticsTopEpisode = {
+  episodeId: string;
+  title: string;
+  listens: number;
+};
+export type AnalyticsTotal = { type: string; total: number; recent: number };
+
+// Daily event counts by type over the last `days` days.
+export async function getAnalyticsDaily(
+  days = 30
+): Promise<AnalyticsDailyRow[]> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase.rpc("analytics_daily", {
+    owner_id: user.id,
+    days,
+  });
+
+  if (error || !data) return [];
+
+  return (data as { day: string; type: string; count: number }[]).map((r) => ({
+    day: r.day,
+    type: r.type,
+    count: Number(r.count),
+  }));
+}
+
+// Top episodes by listens over the last `days` days.
+export async function getAnalyticsTopEpisodes(
+  days = 30,
+  maxRows = 5
+): Promise<AnalyticsTopEpisode[]> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase.rpc("analytics_top_episodes", {
+    owner_id: user.id,
+    days,
+    max_rows: maxRows,
+  });
+
+  if (error || !data) return [];
+
+  return (
+    data as { episode_id: string; title: string; listens: number }[]
+  ).map((r) => ({
+    episodeId: r.episode_id,
+    title: r.title,
+    listens: Number(r.listens),
+  }));
+}
+
+// Lifetime + recent totals per event type (for KPI cards).
+export async function getAnalyticsTotals(
+  days = 30
+): Promise<AnalyticsTotal[]> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase.rpc("analytics_totals", {
+    owner_id: user.id,
+    days,
+  });
+
+  if (error || !data) return [];
+
+  return (data as { type: string; total: number; recent: number }[]).map(
+    (r) => ({
+      type: r.type,
+      total: Number(r.total),
+      recent: Number(r.recent),
+    })
+  );
+}
+
 
 
 
