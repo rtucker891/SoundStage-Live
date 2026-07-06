@@ -224,23 +224,47 @@ const [generatedArtwork, setGeneratedArtwork] = useState("");
 
   setGeneratingArtwork(true);
 
-  const response = await fetch("/api/ai/artwork", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      title: episode.title,
-      show: episode.show,
-      guest: episode.guest,
-    }),
-  });
+  try {
+    // Step 1: generate the image (returns a base64 data URL).
+    const response = await fetch("/api/ai/artwork", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        title: episode.title,
+        show: episode.show,
+        guest: episode.guest,
+      }),
+    });
 
-  const data = await response.json();
+    const data = await response.json();
 
-  setGeneratedArtwork(data.image || "");
+    if (!response.ok || !data.image) {
+      setGeneratedArtwork("");
+      return;
+    }
 
-  setGeneratingArtwork(false);
+    // Step 2: save it as a permanent file and attach it to the episode.
+    const saveResponse = await fetch(
+      `/api/episodes/${episode.id}/cover-art`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ base64: data.image }),
+      }
+    );
+
+    const saved = await saveResponse.json();
+
+    // Prefer the permanent saved URL; fall back to the preview if saving
+    // failed for any reason.
+    setGeneratedArtwork(saved.url || data.image);
+  } finally {
+    setGeneratingArtwork(false);
+  }
 }}
   className="rounded-xl border border-purple-300 bg-white px-5 py-3 font-semibold text-purple-700 hover:bg-purple-50 disabled:opacity-60"
 >

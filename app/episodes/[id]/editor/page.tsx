@@ -16,8 +16,6 @@ import {
   updateEpisodeStatus,
   updateShowNote,
   updateTranscript,
-  uploadFileToStorage,
-updateEpisodeCoverArt,
 } from "@/lib/api";
 
 import type { Asset } from "@/types/asset";
@@ -43,6 +41,8 @@ export default function EpisodeEditorPage() {
   const [copyMessage, setCopyMessage] = useState("");
   const [coverArtUrl, setCoverArtUrl] = useState("");
   const [coverArtPrompt, setCoverArtPrompt] = useState("");
+  const [generatingArtwork, setGeneratingArtwork] = useState(false);
+  const [artworkMessage, setArtworkMessage] = useState("");
 
   // Show-notes editing state. When editing is true, the read-only view is
   // swapped for editable fields. The "draft" values hold in-progress edits so
@@ -76,6 +76,12 @@ export default function EpisodeEditorPage() {
       }
 
       setEpisode(selectedEpisode || null);
+
+      // Auto-load any artwork already saved on this episode so it shows up in
+      // the preview when you re-open the editor.
+      if (selectedEpisode?.coverArtUrl) {
+        setCoverArtUrl(selectedEpisode.coverArtUrl);
+      }
 
       const transcripts = await getTranscripts();
 
@@ -380,66 +386,139 @@ export default function EpisodeEditorPage() {
 
   async function generateCoverArt() {
     if (!episode) return;
+    // Guard against a double-click while the image is still generating.
+    if (generatingArtwork) return;
 
-    const prompt =
-      coverArtPrompt ||
-      `Podcast cover art for an episode titled ${episode.title}`;
+    setGeneratingArtwork(true);
+    setArtworkMessage("Generating artwork with AI...");
 
-    const response = await fetch("/api/ai/cover-art", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        prompt,
-      }),
-    });
+    try {
+      const prompt =
+        coverArtPrompt ||
+        `Podcast cover art for an episode titled ${episode.title}`;
 
-    const data = await response.json();
+      // Step 1: ask the AI for an image. It comes back as a base64 data URL.
+      const response = await fetch("/api/ai/cover-art", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ prompt }),
+      });
 
-    setCoverArtUrl(data.imageUrl);
+      const data = await response.json();
 
-    await createAsset({
-      episodeId: episode.id,
-      name: "AI Cover Art",
-      type: "artwork",
-      fileName: "cover-art.png",
-      fileSize: data.imageUrl.length,
-      mimeType: "image/png",
-      url: data.imageUrl,
-    });
+      if (!response.ok || !data.imageUrl) {
+        setArtworkMessage(
+          data.error || "Could not generate artwork. Please try again."
+        );
+        return;
+      }
+
+      setArtworkMessage("Saving artwork to storage...");
+
+      // Step 2: hand the base64 image to our route, which saves it as a real
+      // file in the public bucket, attaches it to the episode, and returns a
+      // permanent public URL.
+      const saveResponse = await fetch(
+        `/api/episodes/${episode.id}/cover-art`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ base64: data.imageUrl }),
+        }
+      );
+
+      const saved = await saveResponse.json();
+
+      if (!saveResponse.ok || !saved.url) {
+        setArtworkMessage(
+          saved.error || "Could not save artwork. Please try again."
+        );
+        return;
+      }
+
+      // Step 3: show the permanent image and record it as an asset.
+      setCoverArtUrl(saved.url);
+
+      await createAsset({
+        episodeId: episode.id,
+        name: "AI Cover Art",
+        type: "artwork",
+        fileName: "cover-art.png",
+        fileSize: 0,
+        mimeType: "image/png",
+        url: saved.url,
+      });
+
+      setArtworkMessage("Artwork saved and attached to this episode.");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : String(error);
+      setArtworkMessage(`Something went wrong: ${message}`);
+    } finally {
+      setGeneratingArtwork(false);
+    }
   }
-async function uploadCoverArt(
-  event: React.ChangeEvent<HTMLInputElement>
-) {
-  if (!episode) return;
 
-  const file = event.target.files?.[0];
+  async function uploadCoverArt(
+    event: React.ChangeEvent<HTMLInputElement>
+  ) {
+    if (!episode) return;
 
-  if (!file) return;
+    const file = event.target.files?.[0];
 
-  const uploaded = await uploadFileToStorage(
-    file,
-    `episodes/${episode.id}/artwork`
-  );
+    if (!file) return;
 
-  await updateEpisodeCoverArt(
-    episode.id,
-    uploaded.url
-  );
+    setGeneratingArtwork(true);
+    setArtworkMessage("Uploading artwork...");
 
-  setCoverArtUrl(uploaded.url);
+    try {
+      // Send the raw file to the same route the AI flow uses, so uploads also
+      // land as permanent public files (not expiring signed URLs).
+      const formData = new FormData();
+      formData.append("file", file);
 
-  await createAsset({
-    episodeId: episode.id,
-    name: "Cover Art",
-    type: "artwork",
-    fileName: file.name,
-    fileSize: file.size,
-    mimeType: file.type,
-    url: uploaded.url,
-  });
-}
+      const saveResponse = await fetch(
+        `/api/episodes/${episode.id}/cover-art`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      const saved = await saveResponse.json();
+
+      if (!saveResponse.ok || !saved.url) {
+        setArtworkMessage(
+          saved.error || "Could not upload artwork. Please try again."
+        );
+        return;
+      }
+
+      setCoverArtUrl(saved.url);
+
+      await createAsset({
+        episodeId: episode.id,
+        name: "Cover Art",
+        type: "artwork",
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type,
+        url: saved.url,
+      });
+
+      setArtworkMessage("Artwork uploaded and attached to this episode.");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : String(error);
+      setArtworkMessage(`Something went wrong: ${message}`);
+    } finally {
+      setGeneratingArtwork(false);
+    }
+  }
   return (
     <AppShell>
       {loading ? (
@@ -897,14 +976,22 @@ async function uploadCoverArt(
   type="file"
   accept="image/png,image/jpeg,image/webp"
   onChange={uploadCoverArt}
-  className="mt-4 block w-full rounded-lg border border-slate-200 bg-white p-3"
+  disabled={generatingArtwork}
+  className="mt-4 block w-full rounded-lg border border-slate-200 bg-white p-3 disabled:opacity-60"
 />
             <button
               onClick={generateCoverArt}
-              className="mt-4 rounded-lg bg-pink-600 px-5 py-3 font-semibold text-white"
+              disabled={generatingArtwork}
+              className="mt-4 rounded-lg bg-pink-600 px-5 py-3 font-semibold text-white disabled:opacity-60"
             >
-              Generate Cover Art
+              {generatingArtwork ? "Working..." : "Generate Cover Art"}
             </button>
+
+            {artworkMessage && (
+              <p className="mt-3 text-sm text-slate-600">
+                {artworkMessage}
+              </p>
+            )}
 
             {coverArtUrl && (
               <>

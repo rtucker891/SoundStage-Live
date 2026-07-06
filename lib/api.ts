@@ -256,7 +256,7 @@ export async function getEpisodes(): Promise<Episode[]> {
 
   const { data, error } = await supabase
     .from("episodes")
-    .select("id, title, guest, status, shows(title)")
+    .select("id, title, guest, status, cover_art_url, shows(title)")
     .eq("user_id", user.id)
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
@@ -271,6 +271,7 @@ export async function getEpisodes(): Promise<Episode[]> {
     guest: episode.guest || "Pending",
     status: episode.status || "Planning",
     show: episode.shows?.title || "Untitled Show",
+    coverArtUrl: episode.cover_art_url || "",
   }));
 }
 

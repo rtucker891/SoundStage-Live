@@ -11,4 +11,5 @@ export type Episode = {
   show: string;
   status: EpisodeStatus;
   guest: string;
+  coverArtUrl?: string;
 };
