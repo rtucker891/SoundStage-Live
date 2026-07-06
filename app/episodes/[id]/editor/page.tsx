@@ -45,6 +45,7 @@ export default function EpisodeEditorPage() {
   // Show-notes editing state. When editing is true, the read-only view is
   // swapped for editable fields. The "draft" values hold in-progress edits so
   // we can cancel without losing the saved note.
+  const [generatingNotes, setGeneratingNotes] = useState(false);
   const [editingNotes, setEditingNotes] = useState(false);
   const [savingNotes, setSavingNotes] = useState(false);
   const [notesMessage, setNotesMessage] = useState("");
@@ -161,41 +162,57 @@ export default function EpisodeEditorPage() {
 
   async function generateShowNotes() {
     if (!episode || !transcript) return;
+    // Guard against a second click while the AI is still working.
+    if (generatingNotes) return;
+
+    setGeneratingNotes(true);
+    setNotesMessage("");
 
     const transcriptText = transcript.segments
       .map((segment) => `${segment.speaker}: ${segment.text}`)
       .join("\n");
 
-    const response = await fetch("/api/ai/show-notes", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        transcript: transcriptText,
-      }),
-    });
+    try {
+      const response = await fetch("/api/ai/show-notes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          transcript: transcriptText,
+        }),
+      });
 
-    const data = await response.json();
+      const data = await response.json();
 
-    const created = await createShowNote({
-      episodeId: episode.id,
-      title: episode.title,
-      summary: data.showNotes,
-      bulletPoints: [],
-    });
+      if (!response.ok) {
+        throw new Error(data.error || "Show notes generation failed.");
+      }
 
-    setShowNote(created);
+      const created = await createShowNote({
+        episodeId: episode.id,
+        title: episode.title,
+        summary: data.showNotes,
+        bulletPoints: [],
+      });
 
-    await createAsset({
-      episodeId: episode.id,
-      name: "AI Show Notes",
-      type: "show-notes",
-      fileName: "ai-show-notes.md",
-      fileSize: JSON.stringify(created).length,
-      mimeType: "text/markdown",
-      url: "#",
-    });
+      setShowNote(created);
+
+      await createAsset({
+        episodeId: episode.id,
+        name: "AI Show Notes",
+        type: "show-notes",
+        fileName: "ai-show-notes.md",
+        fileSize: JSON.stringify(created).length,
+        mimeType: "text/markdown",
+        url: "#",
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setNotesMessage(`Could not generate show notes: ${msg}`);
+    } finally {
+      setGeneratingNotes(false);
+    }
   }
 
   // Open the editor: copy the saved note into the draft fields. Bullet points
@@ -581,15 +598,25 @@ async function uploadCoverArt(
             {!showNote ? (
               <>
                 <p className="mt-4 text-slate-600">
-                  Generate show notes from this episode.
+                  Generate show notes from this episode. This can take several
+                  seconds while the AI reads the transcript.
                 </p>
 
                 <button
                   onClick={generateShowNotes}
-                  className="mt-6 rounded-lg bg-purple-600 px-5 py-3 font-semibold text-white"
+                  disabled={generatingNotes}
+                  className="mt-6 rounded-lg bg-purple-600 px-5 py-3 font-semibold text-white disabled:opacity-60"
                 >
-                  Generate Show Notes
+                  {generatingNotes
+                    ? "Generating show notes..."
+                    : "Generate Show Notes"}
                 </button>
+
+                {notesMessage && (
+                  <p className="mt-4 text-sm font-semibold text-red-600">
+                    {notesMessage}
+                  </p>
+                )}
               </>
             ) : editingNotes ? (
               <div className="mt-6 space-y-4 rounded-lg border border-purple-100 bg-white p-4">

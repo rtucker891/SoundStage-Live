@@ -1,24 +1,16 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 
 import { getOpenAI } from "@/lib/openai/client";
 
 export async function POST(request: Request) {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
-      process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""
-    );
-
     const body = await request.json();
 
     const transcript = body.transcript;
-    const episodeId = body.episodeId;
-    const title = body.title || "AI Generated Show Notes";
 
-    if (!transcript || !episodeId) {
+    if (!transcript) {
       return NextResponse.json(
-        { error: "Transcript and episodeId are required" },
+        { error: "Transcript is required" },
         { status: 400 }
       );
     }
@@ -42,30 +34,13 @@ ${transcript}
 
     const showNotesText = response.output_text || "";
 
-    const { data, error } = await supabase
-      .from("show_notes")
-      .insert({
-        episode_id: episodeId,
-        title,
-        summary: showNotesText,
-        bullet_points: [],
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error(error);
-
-      return NextResponse.json(
-        { error: "Show notes generated but not saved" },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({
-      showNotes: showNotesText,
-      savedNote: data,
-    });
+    // This route only GENERATES the notes text. Saving happens on the client
+    // via createShowNote(), which correctly stamps the note with the signed-in
+    // user's id (this route uses the service-role key and has no user context,
+    // so a save here would leave user_id null and the note would never show up
+    // in the user's list). Keeping generation and saving separate also avoids
+    // the double-save that happened before.
+    return NextResponse.json({ showNotes: showNotesText });
   } catch (error) {
     console.error(error);
 
