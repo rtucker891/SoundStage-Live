@@ -100,11 +100,32 @@ export default function EpisodesPage() {
       isPublished,
     };
   }
+  // Give each episode status its own badge color so the library is scannable
+  // at a glance. Any unexpected value falls back to neutral slate.
+  function statusBadgeClasses(status: string) {
+    switch (status) {
+      case "Planning":
+        return "bg-slate-100 text-slate-700";
+      case "Recording":
+        return "bg-amber-100 text-amber-700";
+      case "Editing":
+        return "bg-blue-100 text-blue-700";
+      case "Ready to Publish":
+        return "bg-indigo-100 text-indigo-700";
+      case "Published":
+        return "bg-green-100 text-green-700";
+      default:
+        return "bg-slate-100 text-slate-600";
+    }
+  }
+
 const publishedCount = episodes.filter(
   (episode) => episode.status === "Published"
 ).length;
 
-const draftCount = 0;
+const readyCount = episodes.filter(
+  (episode) => episode.status === "Ready to Publish"
+).length;
 const inProductionCount = episodes.length - publishedCount;
   const filteredEpisodes = episodes.filter((episode) => {
     const matchesSearch =
@@ -161,12 +182,12 @@ const inProductionCount = episodes.length - publishedCount;
     </p>
   </div>
 
-  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 shadow">
-    <p className="text-sm font-semibold text-slate-600">
-      Drafts
+  <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-5 shadow">
+    <p className="text-sm font-semibold text-indigo-600">
+      Ready to Publish
     </p>
-    <p className="mt-2 text-3xl font-bold text-slate-700">
-      {draftCount}
+    <p className="mt-2 text-3xl font-bold text-indigo-700">
+      {readyCount}
     </p>
   </div>
 </div>
@@ -218,7 +239,7 @@ const inProductionCount = episodes.length - publishedCount;
               className="rounded-xl border border-slate-200 p-3"
             >
               <option value="All">All Statuses</option>
-              <option value="Draft">Draft</option>
+              <option value="Planning">Planning</option>
               <option value="Recording">Recording</option>
               <option value="Editing">Editing</option>
               <option value="Ready to Publish">Ready to Publish</option>
@@ -259,7 +280,11 @@ const inProductionCount = episodes.length - publishedCount;
                     )}
 
                     <div className="flex items-center justify-between">
-                      <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${statusBadgeClasses(
+                          episode.status
+                        )}`}
+                      >
                         {episode.status}
                       </span>
 

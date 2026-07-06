@@ -210,9 +210,5 @@ async function handlePublish(_request: Request, { params }: Props) {
     publishedAudioSize: audioSize,
     publishedAudioMime: audioMime,
     publishedArtworkUrl,
-    note:
-      audioExt === ".webm"
-        ? "Audio published as WebM. Apple Podcasts requires MP3 — MP3 conversion is the next step."
-        : undefined,
   });
 }

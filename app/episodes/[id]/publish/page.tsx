@@ -9,6 +9,7 @@ import {
   getAssets,
   getEpisodes,
   getShowNotes,
+  unpublishEpisode,
   updateEpisodeStatus,
 } from "@/lib/api";
 
@@ -95,13 +96,10 @@ export default function EpisodePublishPage() {
   (asset) => asset.type === "publish-package"
 );
 
-  const readyToPublish =
-  checks.recording &&
-  checks.transcript &&
-  checks.showNotes &&
-  checks.description &&
-  checks.coverArt &&
-  checks.publishPackage;
+  // Only the two essentials are required to publish: an audio recording and
+  // cover art. The other checks (transcript, show notes, description, publish
+  // package) are advisory — we still show them, but they no longer block.
+  const readyToPublish = checks.recording && checks.coverArt;
 
   async function handlePublish() {
     if (!episode || !readyToPublish) return;
@@ -134,6 +132,33 @@ export default function EpisodePublishPage() {
         : "Episode published successfully. ") +
         (result.note ? `Note: ${result.note}` : "")
     );
+  }
+
+  async function handleUnpublish() {
+    if (!episode) return;
+
+    const confirmed = window.confirm(
+      "Unpublish this episode? It will be removed from your public page and " +
+        "moved back to \u201CReady to Publish\u201D so you can make changes. " +
+        "You can publish it again at any time."
+    );
+    if (!confirmed) return;
+
+    setPublishedMessage("Unpublishing\u2026");
+
+    try {
+      await unpublishEpisode(episode.id);
+      setEpisode({ ...episode, status: "Ready to Publish" });
+      setPublishedMessage(
+        "Episode unpublished. It is now back to \u201CReady to Publish.\u201D"
+      );
+    } catch (error) {
+      setPublishedMessage(
+        `Unpublish failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
   }
 
   function toggleCheck(key: keyof typeof checks) {
@@ -206,6 +231,7 @@ export default function EpisodePublishPage() {
                   />
                   <span>
                     Transcript reviewed{" "}
+                    <span className="text-xs text-slate-400">(optional)</span>{" "}
                     {hasTranscript ? "✓" : "(missing transcript asset)"}
                   </span>
                 </label>
@@ -218,6 +244,7 @@ export default function EpisodePublishPage() {
                   />
                   <span>
                     Show notes reviewed{" "}
+                    <span className="text-xs text-slate-400">(optional)</span>{" "}
                     {showNote ? "✓" : "(missing show notes)"}
                   </span>
                 </label>
@@ -230,6 +257,7 @@ export default function EpisodePublishPage() {
                   />
                   <span>
                     Episode description reviewed{" "}
+                    <span className="text-xs text-slate-400">(optional)</span>{" "}
                     {hasDescription ? "✓" : "(missing description asset)"}
                   </span>
                 </label>
@@ -253,6 +281,7 @@ export default function EpisodePublishPage() {
   />
   <span>
     Publish package reviewed{" "}
+    <span className="text-xs text-slate-400">(optional)</span>{" "}
     {hasPublishPackage
       ? "✓"
       : "(missing publish package)"}
@@ -269,13 +298,28 @@ export default function EpisodePublishPage() {
                 className="mt-6 w-full rounded-lg border border-slate-200 p-3"
               />
 
-              <button
-                onClick={handlePublish}
-                disabled={!readyToPublish}
-                className="mt-6 w-full rounded-lg bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Publish Episode
-              </button>
+              {episode.status === "Published" ? (
+                <div className="mt-6 space-y-3">
+                  <div className="rounded-lg bg-green-50 p-4 text-sm font-semibold text-green-700">
+                    This episode is live on your public page.
+                  </div>
+
+                  <button
+                    onClick={handleUnpublish}
+                    className="w-full rounded-lg border border-red-300 bg-white px-5 py-3 font-semibold text-red-600 hover:bg-red-50"
+                  >
+                    Unpublish Episode
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handlePublish}
+                  disabled={!readyToPublish}
+                  className="mt-6 w-full rounded-lg bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Publish Episode
+                </button>
+              )}
 
              {publishedMessage && (
   <div className="mt-4 rounded-lg bg-green-100 p-4">

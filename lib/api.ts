@@ -361,6 +361,51 @@ export async function updateEpisodeStatus(
   };
 }
 
+// Reverse of publishing: move an episode from "Published" back to
+// "Ready to Publish" and clear the permanent published_* metadata so the
+// public page / RSS feed no longer serve it. The copied files in the public
+// bucket are left in place (harmless — they get overwritten on the next
+// publish), so this stays a fast, single-row update scoped to the owner.
+export async function unpublishEpisode(id: string) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Not signed in");
+  }
+
+  const { data, error } = await supabase
+    .from("episodes")
+    .update({
+      status: "Ready to Publish",
+      published_audio_url: null,
+      published_audio_size: null,
+      published_audio_mime: null,
+      published_audio_duration: null,
+      published_artwork_url: null,
+      published_at: null,
+    })
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .select("id, title, guest, status, shows(title)")
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return {
+    id: data.id,
+    title: data.title,
+    guest: data.guest || "Pending",
+    status: data.status || "Ready to Publish",
+    show:
+      (Array.isArray(data.shows) ? data.shows[0] : data.shows)?.title ||
+      "Untitled Show",
+  };
+}
+
 
 export async function updateEpisode(data: {
   id: string;
