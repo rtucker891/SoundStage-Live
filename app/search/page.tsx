@@ -1,8 +1,14 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import PublicNav from "@/components/public/PublicNav";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Search",
+  description: "Search shows, episodes, and transcripts on SoundStage Live.",
+};
 
 type SearchPageProps = {
   searchParams: Promise<{
@@ -10,32 +16,54 @@ type SearchPageProps = {
   }>;
 };
 
-export default async function SearchPage({
-  searchParams,
-}: SearchPageProps) {
+type TranscriptHit = {
+  episode_id: string;
+  title: string;
+  guest: string | null;
+  cover_art_url: string | null;
+  show_title: string | null;
+  show_cover_art_url: string | null;
+  snippet: string | null;
+};
+
+export default async function SearchPage({ searchParams }: SearchPageProps) {
   const { q = "" } = await searchParams;
   const query = q.trim();
 
-  const { data: showsData } = query
-    ? await supabase
-        .from("shows")
-        .select("id, title, description, cover_art_url")
-        .or(`title.ilike.%${query}%,description.ilike.%${query}%`)
-        .limit(12)
-    : { data: [] };
-  const shows = showsData ?? [];
+  // PostgREST's .or() filter uses commas and parentheses as syntax, so strip
+  // those from the raw query before interpolating into an ilike pattern. The
+  // transcript RPC receives the query as a bound parameter, so it needs no
+  // sanitizing.
+  const safeQuery = query.replace(/[,()]/g, " ");
 
-  const { data: episodesData } = query
-    ? await supabase
-        .from("episodes")
-        .select(
-          "id, title, guest, cover_art_url, shows(title, cover_art_url)"
-        )
-        .eq("status", "Published")
-        .or(`title.ilike.%${query}%,guest.ilike.%${query}%`)
-        .limit(12)
-    : { data: [] };
-  const episodes = episodesData ?? [];
+  // Run all three searches in parallel when there's a query. Shows and
+  // episodes use case-insensitive matching on their key fields; transcripts
+  // go through the search_transcripts() database function, which searches the
+  // full spoken text and returns a matching snippet.
+  const [showsRes, episodesRes, transcriptsRes] = query
+    ? await Promise.all([
+        supabase
+          .from("shows")
+          .select("id, title, description, cover_art_url")
+          .or(`title.ilike.%${safeQuery}%,description.ilike.%${safeQuery}%`)
+          .limit(12),
+        supabase
+          .from("episodes")
+          .select("id, title, guest, cover_art_url, shows(title, cover_art_url)")
+          .eq("status", "Published")
+          .is("deleted_at", null)
+          .or(`title.ilike.%${safeQuery}%,guest.ilike.%${safeQuery}%`)
+          .limit(12),
+        supabase.rpc("search_transcripts", { search_query: query }),
+      ])
+    : [{ data: [] }, { data: [] }, { data: [] }];
+
+  const shows = showsRes.data ?? [];
+  const episodes = episodesRes.data ?? [];
+  const transcriptHits = (transcriptsRes.data ?? []) as TranscriptHit[];
+
+  const totalResults =
+    shows.length + episodes.length + transcriptHits.length;
 
   return (
     <main className="min-h-screen bg-slate-100">
@@ -48,14 +76,14 @@ export default async function SearchPage({
           </p>
 
           <h1 className="mt-4 text-5xl font-bold">
-            Find shows and episodes
+            Find shows, episodes, and moments
           </h1>
 
           <form className="mt-8 flex max-w-2xl gap-3">
             <input
               name="q"
               defaultValue={query}
-              placeholder="Search podcasts, episodes, or guests..."
+              placeholder="Search podcasts, episodes, guests, or spoken words..."
               className="w-full rounded-xl px-4 py-3 text-slate-900"
             />
 
@@ -63,12 +91,33 @@ export default async function SearchPage({
               Search
             </button>
           </form>
+
+          {query && (
+            <p className="mt-4 text-sm text-white/70">
+              {totalResults === 0
+                ? `No results for “${query}”.`
+                : `${totalResults} result${
+                    totalResults === 1 ? "" : "s"
+                  } for “${query}”`}
+            </p>
+          )}
         </section>
 
-        {query && (
+        {!query ? (
+          <p className="mt-10 text-slate-500">
+            Type something above to search across every public show, episode,
+            and transcript.
+          </p>
+        ) : (
           <>
+            {/* Shows */}
             <section className="mt-10">
-              <h2 className="text-3xl font-bold">Shows</h2>
+              <h2 className="text-3xl font-bold">
+                Shows{" "}
+                <span className="text-lg font-normal text-slate-400">
+                  ({shows.length})
+                </span>
+              </h2>
 
               <div className="mt-6 grid gap-6 md:grid-cols-3">
                 {shows.length === 0 ? (
@@ -91,9 +140,7 @@ export default async function SearchPage({
                         </div>
                       )}
 
-                      <h3 className="mt-4 text-xl font-bold">
-                        {show.title}
-                      </h3>
+                      <h3 className="mt-4 text-xl font-bold">{show.title}</h3>
 
                       <p className="mt-2 text-sm text-slate-600">
                         {show.description || "Podcast show"}
@@ -111,8 +158,14 @@ export default async function SearchPage({
               </div>
             </section>
 
+            {/* Episodes */}
             <section className="mt-12">
-              <h2 className="text-3xl font-bold">Episodes</h2>
+              <h2 className="text-3xl font-bold">
+                Episodes{" "}
+                <span className="text-lg font-normal text-slate-400">
+                  ({episodes.length})
+                </span>
+              </h2>
 
               <div className="mt-6 grid gap-6 md:grid-cols-3">
                 {episodes.length === 0 ? (
@@ -142,8 +195,7 @@ export default async function SearchPage({
                         )}
 
                         <p className="mt-4 text-sm text-slate-500">
-                          {(episode.shows as any)?.title ||
-                            "Podcast Episode"}
+                          {(episode.shows as any)?.title || "Podcast Episode"}
                         </p>
 
                         <h3 className="mt-1 text-xl font-bold">
@@ -161,6 +213,61 @@ export default async function SearchPage({
                           Listen Now
                         </Link>
                       </div>
+                    );
+                  })
+                )}
+              </div>
+            </section>
+
+            {/* Transcripts — matches inside the spoken text of episodes */}
+            <section className="mt-12">
+              <h2 className="text-3xl font-bold">
+                In Transcripts{" "}
+                <span className="text-lg font-normal text-slate-400">
+                  ({transcriptHits.length})
+                </span>
+              </h2>
+
+              <div className="mt-6 grid gap-4">
+                {transcriptHits.length === 0 ? (
+                  <p className="text-slate-500">
+                    No spoken-word matches found.
+                  </p>
+                ) : (
+                  transcriptHits.map((hit) => {
+                    const artwork =
+                      hit.cover_art_url || hit.show_cover_art_url || "";
+
+                    return (
+                      <Link
+                        key={hit.episode_id}
+                        href={`/listen/${hit.episode_id}`}
+                        className="flex items-start gap-4 rounded-2xl bg-white p-5 shadow transition hover:shadow-md"
+                      >
+                        {artwork ? (
+                          <img
+                            src={artwork}
+                            alt={hit.title}
+                            className="h-16 w-16 flex-shrink-0 rounded-lg object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 text-xl text-white">
+                            🎙
+                          </div>
+                        )}
+
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-slate-500">
+                            {hit.show_title || "Podcast Episode"}
+                          </p>
+                          <h3 className="text-lg font-bold">{hit.title}</h3>
+                          {hit.snippet && (
+                            <p className="mt-1 text-sm italic text-slate-600">
+                              {hit.snippet}
+                            </p>
+                          )}
+                        </div>
+                      </Link>
                     );
                   })
                 )}
