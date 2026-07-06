@@ -665,6 +665,160 @@ export async function deleteAsset(id: string) {
 
   return { success: true };
 }
+
+/**
+ * Pull the storage path out of a Supabase URL for the private assets bucket.
+ *
+ * Signed URLs look like:
+ *   .../storage/v1/object/sign/soundstage-assets/<user>/<folder>/<file>?token=...
+ * Public URLs look like:
+ *   .../storage/v1/object/public/soundstage-assets/<path>
+ *
+ * We return just the "<user>/<folder>/<file>" part (no query string), which is
+ * what storage.remove() expects. Returns null if the URL isn't a soundstage
+ * bucket URL (e.g. an external link), so callers can skip file deletion.
+ */
+function storagePathFromUrl(
+  url: string,
+  bucket: string
+): string | null {
+  if (!url) return null;
+
+  const marker = `/${bucket}/`;
+  const index = url.indexOf(marker);
+
+  if (index === -1) return null;
+
+  const afterBucket = url.slice(index + marker.length);
+
+  // Strip any query string (the signed-URL token) and decode %20 etc.
+  const withoutQuery = afterBucket.split("?")[0];
+
+  return decodeURIComponent(withoutQuery);
+}
+
+/**
+ * Best-effort delete of an audio file from the private assets bucket. Never
+ * throws — if the file is already gone or the URL isn't ours, we just skip it,
+ * because failing to remove a leftover file should not block deleting the row.
+ */
+export async function deleteStorageFile(url: string) {
+  const path = storagePathFromUrl(url, "soundstage-assets");
+
+  if (!path) return;
+
+  try {
+    await supabase.storage.from("soundstage-assets").remove([path]);
+  } catch {
+    // Non-fatal: the row deletion is what matters to the user.
+  }
+}
+
+/**
+ * Delete the recordings-table row(s) that point at a given audio URL for this
+ * user. A recording is stored in TWO tables (assets + recordings), so deleting
+ * only the asset would leave an orphan recording row behind.
+ */
+export async function deleteRecordingByUrl(audioUrl: string) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Not signed in");
+  }
+
+  const { error } = await supabase
+    .from("recordings")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("audio_url", audioUrl);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return { success: true };
+}
+
+/**
+ * Fully delete a recording asset: the storage file, the recordings row, and
+ * the assets row. Use this instead of deleteAsset for type === "recording" so
+ * nothing is left orphaned. Non-recording assets can keep using deleteAsset.
+ */
+export async function deleteRecordingAsset(asset: {
+  id: string;
+  url: string;
+}) {
+  // 1) Remove the underlying audio file (best effort).
+  await deleteStorageFile(asset.url);
+
+  // 2) Remove the matching recordings-table row(s).
+  await deleteRecordingByUrl(asset.url);
+
+  // 3) Remove the assets-table row.
+  await deleteAsset(asset.id);
+
+  return { success: true };
+}
+
+/**
+ * Point an existing recording asset (and its recordings row) at a new audio
+ * file, then delete the old file from storage. This is the "Replace audio"
+ * action: the asset keeps its identity/slot but its audio is swapped.
+ */
+export async function replaceRecordingAudio(data: {
+  assetId: string;
+  oldUrl: string;
+  newUrl: string;
+  fileName: string;
+  fileSize: number;
+  duration: number;
+}) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Not signed in");
+  }
+
+  // Update the assets row to reference the new file.
+  const { error: assetErr } = await supabase
+    .from("assets")
+    .update({
+      url: data.newUrl,
+      file_name: data.fileName,
+      file_size: data.fileSize,
+      mime_type: "audio/mpeg",
+    })
+    .eq("id", data.assetId)
+    .eq("user_id", user.id);
+
+  if (assetErr) {
+    throw new Error(assetErr.message);
+  }
+
+  // Update any recordings row(s) that pointed at the old file.
+  const { error: recErr } = await supabase
+    .from("recordings")
+    .update({
+      audio_url: data.newUrl,
+      duration: data.duration,
+    })
+    .eq("user_id", user.id)
+    .eq("audio_url", data.oldUrl);
+
+  if (recErr) {
+    throw new Error(recErr.message);
+  }
+
+  // Finally remove the old file from storage (best effort).
+  await deleteStorageFile(data.oldUrl);
+
+  return { success: true };
+}
+
 export async function getShowNotes(): Promise<ShowNote[]> {
   const {
     data: { user },

@@ -7,9 +7,13 @@ import { useParams } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import {
   deleteAsset,
+  deleteRecordingAsset,
   getAssets,
   getEpisodes,
+  replaceRecordingAudio,
+  uploadFileToStorage,
 } from "@/lib/api";
+import { convertToMp3 } from "@/lib/audio/convertToMp3";
 
 import type { Episode } from "@/types/episode";
 import type { Asset } from "@/types/asset";
@@ -20,6 +24,10 @@ export default function EpisodeAssetsPage() {
   const [episode, setEpisode] = useState<Episode | null>(null);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
+  // Track which asset row is busy (replacing/deleting) so we can disable its
+  // buttons and show a status message just for that row.
+  const [busyAssetId, setBusyAssetId] = useState<string | null>(null);
+  const [rowMessage, setRowMessage] = useState<Record<string, string>>({});
 
   useEffect(() => {
     async function load() {
@@ -45,12 +53,103 @@ export default function EpisodeAssetsPage() {
     load();
   }, [params.id]);
 
-  async function handleDeleteAsset(id: string) {
-    await deleteAsset(id);
+  function setMessageFor(id: string, message: string) {
+    setRowMessage((current) => ({ ...current, [id]: message }));
+  }
 
-    setAssets((current) =>
-      current.filter((asset) => asset.id !== id)
-    );
+  async function handleDeleteAsset(asset: Asset) {
+    // Deleting audio is destructive and can't be undone — confirm first.
+    const label =
+      asset.type === "recording" ? "this audio recording" : "this asset";
+    if (!window.confirm(`Delete ${label}? This cannot be undone.`)) {
+      return;
+    }
+
+    setBusyAssetId(asset.id);
+    setMessageFor(asset.id, "Deleting...");
+
+    try {
+      // Recordings live in three places (file + recordings row + asset row),
+      // so use the full cleanup. Other asset types only have the asset row.
+      if (asset.type === "recording") {
+        await deleteRecordingAsset({ id: asset.id, url: asset.url });
+      } else {
+        await deleteAsset(asset.id);
+      }
+
+      setAssets((current) =>
+        current.filter((item) => item.id !== asset.id)
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : String(error);
+      setMessageFor(asset.id, `Could not delete: ${message}`);
+    } finally {
+      setBusyAssetId(null);
+    }
+  }
+
+  async function handleReplaceAudio(
+    asset: Asset,
+    event: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const file = event.target.files?.[0];
+
+    // Reset the input so re-picking the same file still fires onChange.
+    event.target.value = "";
+
+    if (!file) return;
+    if (busyAssetId) return;
+
+    setBusyAssetId(asset.id);
+    setMessageFor(asset.id, "Preparing new audio...");
+
+    try {
+      // Convert to a standard podcast MP3, upload the new file, then point the
+      // existing asset/recording at it and delete the old file.
+      const stem = `replace-${Date.now()}`;
+      const { file: mp3File, size: mp3Size, durationSeconds } =
+        await convertToMp3(file, stem, (status) =>
+          setMessageFor(asset.id, status)
+        );
+
+      const uploaded = await uploadFileToStorage(
+        mp3File,
+        `episodes/${asset.episodeId}/recordings`
+      );
+
+      await replaceRecordingAudio({
+        assetId: asset.id,
+        oldUrl: asset.url,
+        newUrl: uploaded.url,
+        fileName: mp3File.name,
+        fileSize: mp3Size,
+        duration: durationSeconds,
+      });
+
+      // Update the row in place so the player points at the new audio.
+      setAssets((current) =>
+        current.map((item) =>
+          item.id === asset.id
+            ? {
+                ...item,
+                url: uploaded.url,
+                fileName: mp3File.name,
+                fileSize: mp3Size,
+                mimeType: "audio/mpeg",
+              }
+            : item
+        )
+      );
+
+      setMessageFor(asset.id, "Audio replaced successfully.");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : String(error);
+      setMessageFor(asset.id, `Could not replace audio: ${message}`);
+    } finally {
+      setBusyAssetId(null);
+    }
   }
 
   return (
@@ -119,13 +218,32 @@ export default function EpisodeAssetsPage() {
                           className="mt-4 w-full"
                         />
 
-                        <a
-                          href={asset.url}
-                          download={asset.fileName}
-                          className="mt-4 inline-block rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
-                        >
-                          Download Recording
-                        </a>
+                        <div className="mt-4 flex flex-wrap items-center gap-3">
+                          <a
+                            href={asset.url}
+                            download={asset.fileName}
+                            className="inline-block rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+                          >
+                            Download Recording
+                          </a>
+
+                          <label
+                            className={`inline-block cursor-pointer rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white ${
+                              busyAssetId ? "opacity-60" : ""
+                            }`}
+                          >
+                            Replace Audio
+                            <input
+                              type="file"
+                              accept="audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/mp4,audio/m4a,audio/webm,.mp3,.wav,.m4a,.webm"
+                              onChange={(event) =>
+                                handleReplaceAudio(asset, event)
+                              }
+                              disabled={busyAssetId !== null}
+                              className="hidden"
+                            />
+                          </label>
+                        </div>
                       </>
                     )}
 
@@ -187,11 +305,18 @@ export default function EpisodeAssetsPage() {
                       {(asset.fileSize / 1024).toFixed(1)} KB
                     </div>
 
+                    {rowMessage[asset.id] && (
+                      <p className="mt-3 text-sm font-semibold text-slate-600">
+                        {rowMessage[asset.id]}
+                      </p>
+                    )}
+
                     <button
                       onClick={() =>
-                        handleDeleteAsset(asset.id)
+                        handleDeleteAsset(asset)
                       }
-                      className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white"
+                      disabled={busyAssetId !== null}
+                      className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
                     >
                       Delete Asset
                     </button>
