@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
+import { ensurePublicCover } from "@/lib/ensurePublicCover";
 
 export const dynamic = "force-dynamic";
 
@@ -302,11 +303,15 @@ export async function GET(request: Request, { params }: Props) {
   const showTitle = show.title || "Untitled Show";
   const showDescription = show.description || "A SoundStage Live podcast.";
   // Prefer the PERMANENT published cover art (public bucket, never expires).
-  // Fall back to the show's editable cover art, then a bundled default file.
-  const showImage =
-    show.published_cover_art_url ||
-    show.cover_art_url ||
-    `${baseUrl}/default-cover.png`;
+  // If it's missing but a private cover exists, copy it into the public bucket
+  // now (self-heals) so podcast apps always get a stable, non-expiring image.
+  // Fall back to a bundled default file if there's no artwork at all.
+  const permanentShowImage = await ensurePublicCover(
+    show.id,
+    show.published_cover_art_url,
+    show.cover_art_url
+  );
+  const showImage = permanentShowImage || `${baseUrl}/default-cover.png`;
   const author = show.author?.trim() || showTitle;
   const ownerName = show.owner_name?.trim() || author;
   const ownerEmail = show.owner_email?.trim() || "";

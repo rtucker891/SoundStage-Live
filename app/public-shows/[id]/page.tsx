@@ -3,6 +3,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import ShareButton from "@/components/public/ShareButton";
 import PageViewTracker from "@/components/public/PageViewTracker";
+import { ensurePublicCover } from "@/lib/ensurePublicCover";
 
 export const dynamic = "force-dynamic";
 
@@ -50,7 +51,14 @@ export async function generateMetadata({
     return { title: "Show Not Found" };
   }
 
-  const image = show.published_cover_art_url || show.cover_art_url || undefined;
+  // Ensure the social-preview image is a permanent public URL (self-heals the
+  // first time this show is viewed) so shared links never show a broken image.
+  const image =
+    (await ensurePublicCover(
+      id,
+      show.published_cover_art_url,
+      show.cover_art_url
+    )) || undefined;
   const description = show.description || "A podcast on SoundStage Live.";
 
   return {
@@ -105,7 +113,13 @@ export default async function PublicShowPage({ params }: Props) {
     .order("published_at", { ascending: false, nullsFirst: false });
 
   const episodes = episodesData ?? [];
-  const artwork = show.published_cover_art_url || show.cover_art_url || "";
+  // Guarantee a permanent public artwork URL (copies from the private bucket
+  // on first view if needed). Falls back to whatever exists on failure.
+  const artwork = await ensurePublicCover(
+    id,
+    show.published_cover_art_url,
+    show.cover_art_url
+  );
 
   return (
     <main className="min-h-screen bg-slate-100">
