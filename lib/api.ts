@@ -1586,7 +1586,7 @@ export async function createGuestInvite(input: {
   guestEmail: string;
   episodeId?: string | null;
   message?: string;
-}): Promise<{ invite: GuestInvite; acceptUrl: string }> {
+}): Promise<{ invite: GuestInvite; acceptUrl: string; emailSent: boolean }> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -1616,12 +1616,41 @@ export async function createGuestInvite(input: {
     .single();
   if (error) throw new Error(error.message);
 
-  // Phase 9 hook: send this URL to guestEmail via transactional email.
   const origin =
     typeof window !== "undefined" ? window.location.origin : "";
   const acceptUrl = `${origin}/invite/${token}`;
 
-  return { invite: mapInvite(data as GuestInviteRow), acceptUrl };
+  // Phase 9 (#20 close-the-loop): ask the server to email the guest. This is
+  // best-effort — if email isn't configured yet (no RESEND_API_KEY) the server
+  // safely no-ops and reports emailSent=false, so the UI falls back to
+  // "copy this link and send it yourself." A failure here never blocks the
+  // invite itself, which is already saved.
+  let emailSent = false;
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const res = await fetch("/api/invites/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(session?.access_token
+          ? { Authorization: `Bearer ${session.access_token}` }
+          : {}),
+      },
+      body: JSON.stringify({ token }),
+    });
+    if (res.ok) {
+      const json = (await res.json()) as {
+        email?: { sent?: boolean };
+      };
+      emailSent = Boolean(json?.email?.sent);
+    }
+  } catch {
+    // ignore — fall back to manual link sharing
+  }
+
+  return { invite: mapInvite(data as GuestInviteRow), acceptUrl, emailSent };
 }
 
 export async function cancelGuestInvite(inviteId: string): Promise<void> {
@@ -1629,5 +1658,101 @@ export async function cancelGuestInvite(inviteId: string): Promise<void> {
     .from("guest_invites")
     .update({ status: "cancelled", responded_at: new Date().toISOString() })
     .eq("id", inviteId);
+  if (error) throw new Error(error.message);
+}
+
+/* ============================================================
+ * Notifications (#40) — the in-app notification center.
+ * These run in the browser as the signed-in user; RLS ensures
+ * each user only ever sees/updates their own notifications.
+ * ============================================================ */
+
+export type Notification = {
+  id: string;
+  type: string;
+  title: string;
+  body: string | null;
+  link: string | null;
+  readAt: string | null;
+  createdAt: string;
+};
+
+type NotificationRow = {
+  id: string;
+  type: string;
+  title: string;
+  body: string | null;
+  link: string | null;
+  read_at: string | null;
+  created_at: string;
+};
+
+function mapNotification(row: NotificationRow): Notification {
+  return {
+    id: row.id,
+    type: row.type,
+    title: row.title,
+    body: row.body,
+    link: row.link,
+    readAt: row.read_at,
+    createdAt: row.created_at,
+  };
+}
+
+/** Latest notifications for the signed-in user (newest first). */
+export async function getNotifications(limit = 30): Promise<Notification[]> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("notifications")
+    .select("id, type, title, body, link, read_at, created_at")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  return (data as NotificationRow[]).map(mapNotification);
+}
+
+/** How many unread notifications the signed-in user has (for the bell badge). */
+export async function getUnreadNotificationCount(): Promise<number> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return 0;
+
+  const { count, error } = await supabase
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .is("read_at", null);
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
+/** Mark one notification as read. */
+export async function markNotificationRead(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("notifications")
+    .update({ read_at: new Date().toISOString() })
+    .eq("id", id)
+    .is("read_at", null);
+  if (error) throw new Error(error.message);
+}
+
+/** Mark every unread notification as read (for the signed-in user). */
+export async function markAllNotificationsRead(): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const { error } = await supabase
+    .from("notifications")
+    .update({ read_at: new Date().toISOString() })
+    .eq("user_id", user.id)
+    .is("read_at", null);
   if (error) throw new Error(error.message);
 }

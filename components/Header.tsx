@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import NotificationBell from "@/components/NotificationBell";
 
 export default function Header() {
   const router = useRouter();
@@ -45,9 +46,7 @@ export default function Header() {
           className="w-72 rounded-lg border border-slate-200 px-4 py-2 outline-none focus:border-blue-500"
         />
 
-        <button className="rounded-lg border border-slate-200 px-4 py-2">
-          Notifications
-        </button>
+        <NotificationBell />
 
         <button
           onClick={handleSignOut}

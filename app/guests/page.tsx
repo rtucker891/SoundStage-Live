@@ -60,14 +60,16 @@ export default function GuestsPage() {
     setInviteFeedback("");
     setLastInviteLink("");
     try {
-      const { acceptUrl } = await createGuestInvite({
+      const { acceptUrl, emailSent } = await createGuestInvite({
         guestName: inviteName,
         guestEmail: inviteEmail,
         message: inviteMsg,
       });
       setLastInviteLink(acceptUrl);
       setInviteFeedback(
-        "Invite created. Email delivery arrives in Phase 9 — for now, copy the link below and send it to your guest."
+        emailSent
+          ? `Invite created and emailed to ${inviteEmail.trim()}. You can also copy the link below to share it another way.`
+          : "Invite created. Email sending isn't turned on yet — copy the link below and send it to your guest yourself."
       );
       setInviteName("");
       setInviteEmail("");
