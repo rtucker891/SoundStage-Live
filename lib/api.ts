@@ -275,6 +275,24 @@ export async function getEpisodes(): Promise<Episode[]> {
   }));
 }
 
+// Load the saved AI chapter markers for one episode (#31). Returned as an
+// ordered array of { startTime, title }. Empty if none have been generated.
+export async function getEpisodeChapters(
+  episodeId: string
+): Promise<{ startTime: number; title: string }[]> {
+  const { data, error } = await supabase
+    .from("episodes")
+    .select("chapters")
+    .eq("id", episodeId)
+    .single();
+
+  if (error || !data?.chapters || !Array.isArray(data.chapters)) {
+    return [];
+  }
+
+  return data.chapters as { startTime: number; title: string }[];
+}
+
 
 
 

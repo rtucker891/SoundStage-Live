@@ -10,6 +10,7 @@ import {
   createShowNote,
   createTranscript,
   getAssets,
+  getEpisodeChapters,
   getEpisodes,
   getShowNotes,
   getTranscripts,
@@ -54,6 +55,26 @@ export default function EpisodeEditorPage() {
   const [draftNoteTitle, setDraftNoteTitle] = useState("");
   const [draftNoteSummary, setDraftNoteSummary] = useState("");
   const [draftNoteBullets, setDraftNoteBullets] = useState("");
+
+  // Phase 6 AI creator toolkit state (#27 highlights, #28 social posts,
+  // #31 chapters). Each holds the generated list plus a loading + message flag.
+  const [highlights, setHighlights] = useState<
+    { quote: string; reason: string; timestamp: number }[]
+  >([]);
+  const [generatingHighlights, setGeneratingHighlights] = useState(false);
+  const [highlightsMessage, setHighlightsMessage] = useState("");
+
+  const [socialPosts, setSocialPosts] = useState<
+    { platform: string; content: string }[]
+  >([]);
+  const [generatingSocial, setGeneratingSocial] = useState(false);
+  const [socialMessage, setSocialMessage] = useState("");
+
+  const [chapters, setChapters] = useState<
+    { startTime: number; title: string }[]
+  >([]);
+  const [generatingChapters, setGeneratingChapters] = useState(false);
+  const [chaptersMessage, setChaptersMessage] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -112,6 +133,15 @@ export default function EpisodeEditorPage() {
       );
 
       setRecordingAsset(recording || null);
+
+      // Load any previously-saved chapters so they persist across reloads.
+      if (selectedEpisode?.id) {
+        const savedChapters = await getEpisodeChapters(selectedEpisode.id);
+        if (savedChapters.length > 0) {
+          setChapters(savedChapters);
+        }
+      }
+
       setLoading(false);
     }
 
@@ -382,6 +412,154 @@ export default function EpisodeEditorPage() {
     setPublishMessage(
       "Publish package generated successfully."
     );
+  }
+
+  // #27 Generate shareable highlight moments from the transcript.
+  async function generateHighlights() {
+    if (!transcript || generatingHighlights) return;
+
+    setGeneratingHighlights(true);
+    setHighlightsMessage("");
+
+    // Include timing so the model can attach an approximate timestamp to each
+    // highlight, e.g. "[12s] Alex: ...".
+    const timedTranscript = transcript.segments
+      .map(
+        (segment) =>
+          `[${Math.round(segment.startTime)}s] ${segment.speaker}: ${segment.text}`
+      )
+      .join("\n");
+
+    try {
+      const response = await fetch("/api/ai/highlights", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript: timedTranscript }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Highlight generation failed.");
+      }
+
+      setHighlights(data.highlights || []);
+
+      if ((data.highlights || []).length === 0) {
+        setHighlightsMessage("No highlights were found. Try again.");
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setHighlightsMessage(`Could not generate highlights: ${msg}`);
+    } finally {
+      setGeneratingHighlights(false);
+    }
+  }
+
+  // #28 Generate platform-specific social posts.
+  async function generateSocialPosts() {
+    if (!transcript || generatingSocial) return;
+
+    setGeneratingSocial(true);
+    setSocialMessage("");
+
+    const transcriptText = transcript.segments
+      .map((segment) => `${segment.speaker}: ${segment.text}`)
+      .join("\n");
+
+    try {
+      const response = await fetch("/api/ai/social-posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transcript: transcriptText,
+          showNotes: showNote?.summary || "",
+          episodeTitle: episode?.title || "",
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Social post generation failed.");
+      }
+
+      setSocialPosts(data.posts || []);
+
+      if ((data.posts || []).length === 0) {
+        setSocialMessage("No posts were generated. Try again.");
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setSocialMessage(`Could not generate social posts: ${msg}`);
+    } finally {
+      setGeneratingSocial(false);
+    }
+  }
+
+  // #31 Generate chapter markers from the timed transcript, then persist them
+  // on the episode so the RSS feed can embed them.
+  async function generateChapters() {
+    if (!transcript || !episode || generatingChapters) return;
+
+    setGeneratingChapters(true);
+    setChaptersMessage("");
+
+    const timedTranscript = transcript.segments
+      .map(
+        (segment) =>
+          `[${Math.round(segment.startTime)}s] ${segment.speaker}: ${segment.text}`
+      )
+      .join("\n");
+
+    try {
+      const response = await fetch("/api/ai/chapters", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript: timedTranscript }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Chapter generation failed.");
+      }
+
+      const generated = data.chapters || [];
+      setChapters(generated);
+
+      if (generated.length === 0) {
+        setChaptersMessage("No chapters were generated. Try again.");
+      } else {
+        // Persist the chapters on the episode so the public feed can use them.
+        const saveResponse = await fetch(`/api/episodes/${episode.id}/chapters`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chapters: generated }),
+        });
+
+        if (saveResponse.ok) {
+          setChaptersMessage("Chapters generated and saved.");
+        } else {
+          setChaptersMessage(
+            "Chapters generated, but saving to the episode failed."
+          );
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setChaptersMessage(`Could not generate chapters: ${msg}`);
+    } finally {
+      setGeneratingChapters(false);
+    }
+  }
+
+  // Format seconds as m:ss (e.g. 270 -> "4:30") for display.
+  function formatTimestamp(totalSeconds: number) {
+    const seconds = Math.max(0, Math.round(totalSeconds));
+    const minutes = Math.floor(seconds / 60);
+    const remaining = seconds % 60;
+    return `${minutes}:${remaining.toString().padStart(2, "0")}`;
   }
 
   async function generateCoverArt() {
@@ -943,6 +1121,188 @@ export default function EpisodeEditorPage() {
                   {publishPackage}
                 </div>
               </>
+            )}
+          </div>
+
+          {/* #27 AI Highlights */}
+          <div className="mt-8 rounded-2xl border border-amber-200 bg-gradient-to-br from-white to-amber-50 p-6 shadow">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wide text-amber-600">
+                  AI Toolkit
+                </p>
+                <h2 className="text-2xl font-bold text-slate-900">
+                  Highlights
+                </h2>
+              </div>
+              <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-700">
+                Shareable Moments
+              </span>
+            </div>
+
+            <p className="mt-2 text-slate-600">
+              Pull the most memorable, clip-worthy moments out of the
+              transcript.
+            </p>
+
+            <button
+              onClick={generateHighlights}
+              disabled={!transcript || generatingHighlights}
+              className="mt-4 rounded-lg bg-amber-600 px-5 py-3 font-semibold text-white disabled:opacity-60"
+            >
+              {generatingHighlights ? "Finding highlights..." : "Generate Highlights"}
+            </button>
+
+            {highlightsMessage && (
+              <p className="mt-4 text-sm font-semibold text-slate-600">
+                {highlightsMessage}
+              </p>
+            )}
+
+            {highlights.length > 0 && (
+              <div className="mt-6 space-y-4">
+                {highlights.map((h, index) => (
+                  <div
+                    key={index}
+                    className="rounded-lg border border-amber-100 bg-white p-4"
+                  >
+                    <p className="text-sm font-semibold text-amber-700">
+                      {formatTimestamp(h.timestamp)}
+                    </p>
+                    <p className="mt-1 font-medium text-slate-900">
+                      “{h.quote}”
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500">{h.reason}</p>
+                    <button
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(h.quote);
+                        setHighlightsMessage("Highlight copied.");
+                      }}
+                      className="mt-3 rounded-lg bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-800"
+                    >
+                      Copy quote
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* #28 AI Social Posts */}
+          <div className="mt-8 rounded-2xl border border-sky-200 bg-gradient-to-br from-white to-sky-50 p-6 shadow">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wide text-sky-600">
+                  AI Toolkit
+                </p>
+                <h2 className="text-2xl font-bold text-slate-900">
+                  Social Posts
+                </h2>
+              </div>
+              <span className="rounded-full bg-sky-100 px-3 py-1 text-sm font-semibold text-sky-700">
+                Promotion
+              </span>
+            </div>
+
+            <p className="mt-2 text-slate-600">
+              Generate ready-to-post captions tuned for each platform.
+            </p>
+
+            <button
+              onClick={generateSocialPosts}
+              disabled={!transcript || generatingSocial}
+              className="mt-4 rounded-lg bg-sky-600 px-5 py-3 font-semibold text-white disabled:opacity-60"
+            >
+              {generatingSocial ? "Writing posts..." : "Generate Social Posts"}
+            </button>
+
+            {socialMessage && (
+              <p className="mt-4 text-sm font-semibold text-slate-600">
+                {socialMessage}
+              </p>
+            )}
+
+            {socialPosts.length > 0 && (
+              <div className="mt-6 space-y-4">
+                {socialPosts.map((post, index) => (
+                  <div
+                    key={index}
+                    className="rounded-lg border border-sky-100 bg-white p-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-sky-700">
+                        {post.platform}
+                      </p>
+                      <button
+                        onClick={async () => {
+                          await navigator.clipboard.writeText(post.content);
+                          setSocialMessage(`${post.platform} post copied.`);
+                        }}
+                        className="rounded-lg bg-sky-100 px-3 py-1 text-sm font-semibold text-sky-800"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                    <p className="mt-2 whitespace-pre-wrap text-slate-800">
+                      {post.content}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* #31 AI Chapters */}
+          <div className="mt-8 rounded-2xl border border-violet-200 bg-gradient-to-br from-white to-violet-50 p-6 shadow">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wide text-violet-600">
+                  AI Toolkit
+                </p>
+                <h2 className="text-2xl font-bold text-slate-900">
+                  Chapters
+                </h2>
+              </div>
+              <span className="rounded-full bg-violet-100 px-3 py-1 text-sm font-semibold text-violet-700">
+                Feed Navigation
+              </span>
+            </div>
+
+            <p className="mt-2 text-slate-600">
+              Split the episode into chapters. Saved chapters appear in your RSS
+              feed so podcast apps can show clickable navigation.
+            </p>
+
+            <button
+              onClick={generateChapters}
+              disabled={!transcript || generatingChapters}
+              className="mt-4 rounded-lg bg-violet-600 px-5 py-3 font-semibold text-white disabled:opacity-60"
+            >
+              {generatingChapters ? "Building chapters..." : "Generate Chapters"}
+            </button>
+
+            {chaptersMessage && (
+              <p className="mt-4 text-sm font-semibold text-slate-600">
+                {chaptersMessage}
+              </p>
+            )}
+
+            {chapters.length > 0 && (
+              <ol className="mt-6 space-y-2">
+                {chapters.map((chapter, index) => (
+                  <li
+                    key={index}
+                    className="flex items-center gap-3 rounded-lg border border-violet-100 bg-white p-3"
+                  >
+                    <span className="rounded bg-violet-100 px-2 py-1 text-sm font-mono font-semibold text-violet-800">
+                      {formatTimestamp(chapter.startTime)}
+                    </span>
+                    <span className="font-medium text-slate-900">
+                      {chapter.title}
+                    </span>
+                  </li>
+                ))}
+              </ol>
             )}
           </div>
 

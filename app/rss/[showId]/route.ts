@@ -148,6 +148,44 @@ function audioMimeFromUrl(url: string, fallback?: string | null): string {
   return fallback || "audio/mpeg";
 }
 
+/**
+ * Format a chapter start time (in seconds) as the "HH:MM:SS.mmm" string
+ * required by the Podlove Simple Chapters (psc) spec used in the feed.
+ */
+function formatChapterStart(seconds: number): string {
+  const total = Math.max(0, seconds);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total / 60) % 60);
+  const s = Math.floor(total % 60);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(h)}:${pad(m)}:${pad(s)}.000`;
+}
+
+/**
+ * Build a <psc:chapters> block from an episode's saved chapters (#31).
+ * Returns "" when there are none, so items without chapters stay clean.
+ * Podlove Simple Chapters is an inline standard supported by many podcast
+ * apps, so no separate chapters file is needed.
+ */
+function renderChapters(chapters: unknown): string {
+  if (!Array.isArray(chapters) || chapters.length === 0) return "";
+
+  const rows = chapters
+    .map((c: { startTime?: unknown; title?: unknown }) => {
+      const start = Number(c?.startTime) || 0;
+      const title = typeof c?.title === "string" ? c.title : "";
+      if (!title.trim()) return "";
+      return `<psc:chapter start="${formatChapterStart(start)}" title="${xml(
+        title
+      )}" />`;
+    })
+    .filter(Boolean)
+    .join("");
+
+  if (!rows) return "";
+  return `<psc:chapters version="1.2">${rows}</psc:chapters>`;
+}
+
 export async function GET(request: Request, { params }: Props) {
   const { showId } = await params;
 
@@ -167,7 +205,7 @@ export async function GET(request: Request, { params }: Props) {
   const { data: episodesData } = await supabase
     .from("episodes")
     .select(
-      "id, title, guest, created_at, cover_art_url, published_audio_url, published_audio_size, published_audio_mime, published_audio_duration, published_artwork_url"
+      "id, title, guest, created_at, cover_art_url, published_audio_url, published_audio_size, published_audio_mime, published_audio_duration, published_artwork_url, chapters"
     )
     .eq("show_id", showId)
     .eq("status", "Published")
@@ -347,6 +385,9 @@ export async function GET(request: Request, { params }: Props) {
         ? `<content:encoded><![CDATA[${safeContent}]]></content:encoded>`
         : "";
 
+      // <psc:chapters> — AI-generated chapter markers (#31), when present.
+      const chaptersXml = renderChapters(episode.chapters);
+
       return `
     <item>
       <title>${xml(episode.title)}</title>
@@ -363,6 +404,7 @@ export async function GET(request: Request, { params }: Props) {
       <itunes:explicit>${explicit}</itunes:explicit>
       <itunes:episodeType>full</itunes:episodeType>
       ${duration ? `<itunes:duration>${duration}</itunes:duration>` : ""}
+      ${chaptersXml}
     </item>`;
     })
     .join("");
@@ -371,7 +413,8 @@ export async function GET(request: Request, { params }: Props) {
 <rss version="2.0"
      xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
      xmlns:atom="http://www.w3.org/2005/Atom"
-     xmlns:content="http://purl.org/rss/1.0/modules/content/">
+     xmlns:content="http://purl.org/rss/1.0/modules/content/"
+     xmlns:psc="http://podlove.org/simple-chapters">
   <channel>
     <title>${xml(showTitle)}</title>
     <description>${xml(showDescription)}</description>
