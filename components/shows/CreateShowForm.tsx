@@ -3,8 +3,13 @@
 import { useState } from "react";
 
 import { createShow } from "@/lib/api";
+import type { Show } from "@/types/show";
 
-export default function CreateShowForm() {
+export default function CreateShowForm({
+  onCreated,
+}: {
+  onCreated?: (show: Show) => void;
+}) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
@@ -14,16 +19,26 @@ export default function CreateShowForm() {
 
     setSaving(true);
 
-    await createShow({
-      title,
-      description,
-    });
+    try {
+      const newShow = await createShow({
+        title,
+        description,
+      });
 
-    setTitle("");
-    setDescription("");
-    setSaving(false);
+      setTitle("");
+      setDescription("");
 
-    window.location.reload();
+      // Add the new show to the parent list instantly (no full page reload).
+      onCreated?.(newShow);
+    } catch (err) {
+      alert(
+        `Could not create show: ${
+          err instanceof Error ? err.message : "Unknown error"
+        }`
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (

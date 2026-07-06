@@ -60,7 +60,11 @@ export default function ShowsPage() {
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-3">
-        <CreateShowForm />
+        <CreateShowForm
+          onCreated={(newShow) =>
+            setShows((prev) => [newShow, ...prev])
+          }
+        />
 
         {loading ? (
           <div className="rounded-xl bg-white p-6 shadow lg:col-span-2">
