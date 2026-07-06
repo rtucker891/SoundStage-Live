@@ -53,18 +53,8 @@ Square album-cover format
   } catch (error) {
     console.error("[ai/artwork] generation failed:", error);
 
-    // TEMPORARY DIAGNOSTIC: surface the real OpenAI error so we can see why
-    // artwork generation is failing in production. Revert to a generic message
-    // once the root cause is fixed.
-    const detail =
-      error instanceof Error ? error.message : JSON.stringify(error);
-    const status =
-      typeof error === "object" && error !== null && "status" in error
-        ? (error as { status?: number }).status
-        : undefined;
-
     return NextResponse.json(
-      { error: "Failed to generate artwork", detail, openaiStatus: status },
+      { error: "Failed to generate artwork" },
       { status: 500 }
     );
   }
