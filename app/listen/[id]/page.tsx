@@ -17,7 +17,7 @@ export default async function PublicEpisodePage({
  const { data: episode } = await supabase
   .from("episodes")
   .select(
-  "id, title, guest, status, cover_art_url, shows(title, cover_art_url)"
+  "id, title, guest, status, cover_art_url, published_audio_url, published_audio_mime, published_artwork_url, shows(title, cover_art_url)"
 )
   .eq("id", id)
   .single();
@@ -47,16 +47,27 @@ const artworkAsset = assets.find(
 );
 
 const coverArtUrl =
+  episode.published_artwork_url ||
   episode.cover_art_url ||
   artworkAsset?.url ||
   (episode.shows as any)?.cover_art_url ||
   "";
 
-  const { data: note } = await supabase
+// Prefer the PERMANENT published MP3 (public bucket, never expires). Only fall
+// back to the asset's signed URL if the episode was never published — those
+// signed URLs expire after an hour, so they only work right after recording.
+const audioSrc = episode.published_audio_url || recording?.url || "";
+const audioType = episode.published_audio_mime || undefined;
+
+  // An episode can have multiple show_notes rows (the AI generator was re-run),
+  // so take the most recent one rather than .single() which would error.
+  const { data: notes } = await supabase
     .from("show_notes")
     .select("*")
     .eq("episode_id", id)
-    .maybeSingle();
+    .order("created_at", { ascending: false })
+    .limit(1);
+  const note = notes?.[0] ?? null;
 
   return (
     <main className="min-h-screen bg-slate-100">
@@ -93,12 +104,11 @@ const coverArtUrl =
             Listen Now
           </h2>
 
-          {recording ? (
-            <audio
-              controls
-              src={recording.url}
-              className="mt-6 w-full"
-            />
+          {audioSrc ? (
+            <audio controls className="mt-6 w-full">
+              <source src={audioSrc} type={audioType} />
+              Your browser does not support the audio element.
+            </audio>
           ) : (
             <p className="mt-4 text-slate-500">
               No recording available.
