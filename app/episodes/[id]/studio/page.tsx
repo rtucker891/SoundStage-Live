@@ -27,6 +27,7 @@ export default function EpisodeStudioPage() {
   const [episode, setEpisode] = useState<Episode | null>(null);
   const [loading, setLoading] = useState(true);
   const [recording, setRecording] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [audioUrl, setAudioUrl] = useState("");
   const [message, setMessage] = useState("");
 
@@ -44,6 +45,87 @@ export default function EpisodeStudioPage() {
 
     load();
   }, [params.id]);
+
+  // Shared "save an audio blob to this episode" pipeline. Both the browser
+  // recorder and the file uploader feed into this so they behave identically:
+  // convert to a standard podcast MP3, upload to storage, then record it as a
+  // recording + asset and move the episode into the Recording state.
+  async function saveAudioBlob(blob: Blob, stem: string) {
+    if (!episode) return;
+
+    const { file: audioFile, size: mp3Size, durationSeconds } =
+      await convertToMp3(blob, stem, (status) => setMessage(status));
+
+    const fileName = audioFile.name; // "<stem>.mp3"
+
+    const uploadedFile = await uploadFileToStorage(
+      audioFile,
+      `episodes/${episode.id}/recordings`
+    );
+
+    const url = uploadedFile.url;
+
+    await createRecording({
+      episodeId: episode.id,
+      name: `Recording ${new Date().toLocaleTimeString()}`,
+      duration: durationSeconds,
+      audioUrl: url,
+    });
+
+    setAudioUrl(url);
+
+    await createAsset({
+      episodeId: episode.id,
+      name: `Recording ${new Date().toLocaleTimeString()}`,
+      type: "recording",
+      fileName,
+      fileSize: mp3Size,
+      mimeType: "audio/mpeg",
+      url,
+    });
+
+    await updateEpisodeStatus(episode.id, "Recording");
+
+    setEpisode({
+      ...episode,
+      status: "Recording",
+    });
+  }
+
+  // Handle an existing audio file the user picked from their computer (e.g. a
+  // Zoom/Audacity/phone recording). Reuses the same save pipeline as the
+  // browser recorder.
+  async function uploadAudioFile(
+    event: React.ChangeEvent<HTMLInputElement>
+  ) {
+    if (!episode) return;
+
+    const file = event.target.files?.[0];
+
+    // Reset the input so picking the same file again still fires onChange.
+    event.target.value = "";
+
+    if (!file) return;
+
+    if (uploading || recording) return;
+
+    setUploading(true);
+    setMessage("Preparing your audio file...");
+
+    try {
+      const stem = `upload-${Date.now()}`;
+      await saveAudioBlob(file, stem);
+      setMessage("Audio uploaded and saved successfully.");
+    } catch (error) {
+      if (error instanceof Error) {
+        setMessage(error.message);
+      } else {
+        setMessage("Audio upload failed.");
+      }
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function startRecording() {
   if (!episode) return;
@@ -67,52 +149,14 @@ export default function EpisodeStudioPage() {
     };
 
     mediaRecorder.onstop = async () => {
-     try { 
-      // Raw browser capture is WebM/Opus. Podcast directories (Apple) require
-      // MP3, so we convert in-browser before uploading. See lib/audio.
+     try {
+      // Raw browser capture is WebM/Opus. The shared pipeline converts it to a
+      // standard podcast MP3 before uploading. See lib/audio.
       const webmBlob = new Blob(chunksRef.current, {
         type: "audio/webm",
       });
 
-      const stem = `recording-${Date.now()}`;
-
-      const { file: recordingFile, size: mp3Size, durationSeconds } =
-        await convertToMp3(webmBlob, stem, (status) => setMessage(status));
-
-      const fileName = recordingFile.name; // "<stem>.mp3"
-
-      const uploadedFile = await uploadFileToStorage(
-        recordingFile,
-        `episodes/${episode.id}/recordings`
-      );
-
-      const url = uploadedFile.url;
-
-      await createRecording({
-        episodeId: episode.id,
-        name: `Recording ${new Date().toLocaleTimeString()}`,
-        duration: durationSeconds,
-        audioUrl: url,
-      });
-
-      setAudioUrl(url);
-
-      await createAsset({
-        episodeId: episode.id,
-        name: `Recording ${new Date().toLocaleTimeString()}`,
-        type: "recording",
-        fileName,
-        fileSize: mp3Size,
-        mimeType: "audio/mpeg",
-        url,
-      });
-
-      await updateEpisodeStatus(episode.id, "Recording");
-
-      setEpisode({
-        ...episode,
-        status: "Recording",
-      });
+      await saveAudioBlob(webmBlob, `recording-${Date.now()}`);
 
       streamRef.current?.getTracks().forEach((track) => track.stop());
 
@@ -194,7 +238,8 @@ export default function EpisodeStudioPage() {
                 {!recording ? (
                   <button
                     onClick={startRecording}
-                    className="rounded-lg bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-5 py-3 font-semibold text-white"
+                    disabled={uploading}
+                    className="rounded-lg bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-5 py-3 font-semibold text-white disabled:opacity-60"
                   >
                     Start Recording
                   </button>
@@ -206,6 +251,25 @@ export default function EpisodeStudioPage() {
                     Stop Recording
                   </button>
                 )}
+              </div>
+
+              <div className="mt-8 border-t border-slate-200 pt-6">
+                <h3 className="text-lg font-bold">
+                  Upload an Audio File
+                </h3>
+
+                <p className="mt-1 text-sm text-slate-600">
+                  Already recorded somewhere else? Upload an MP3, WAV, M4A, or
+                  WebM file and we&apos;ll convert it to a podcast-ready MP3.
+                </p>
+
+                <input
+                  type="file"
+                  accept="audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/mp4,audio/m4a,audio/webm,.mp3,.wav,.m4a,.webm"
+                  onChange={uploadAudioFile}
+                  disabled={uploading || recording}
+                  className="mt-4 block w-full rounded-lg border border-slate-200 bg-white p-3 disabled:opacity-60"
+                />
               </div>
 
               {message && (
@@ -241,7 +305,8 @@ export default function EpisodeStudioPage() {
               </h2>
 
               <div className="mt-4 space-y-3 text-sm text-slate-600">
-                <p>✓ Microphone access required</p>
+                <p>✓ Record in the browser or upload a file</p>
+                <p>✓ Files convert to podcast-ready MP3</p>
                 <p>✓ Recording saves as an asset</p>
                 <p>✓ Recording can be replayed</p>
                 <p>✓ Recording can be downloaded</p>
