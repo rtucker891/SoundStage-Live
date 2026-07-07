@@ -83,9 +83,23 @@ export default function ShowsPage() {
                     </p>
                   </div>
 
-                  <span className="inline-flex h-fit rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
-                    {show.status}
-                  </span>
+                  <div className="flex h-fit flex-col items-end gap-2">
+                    <span className="inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+                      {show.status}
+                    </span>
+                    {show.myRole && (
+                      <span
+                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                          show.myRole === "owner"
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-slate-100 text-slate-600"
+                        }`}
+                        title="Your role on this show"
+                      >
+                        {show.myRole === "owner" ? "⭐ Owner" : `👥 ${show.myRole.charAt(0).toUpperCase() + show.myRole.slice(1)}`}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="mt-6 rounded-lg bg-slate-100 p-4">
@@ -106,18 +120,30 @@ export default function ShowsPage() {
                     Open Show
                   </Link>
 
-                  {confirmingShowId === show.id ? null : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setConfirmingShowId(show.id);
-                        setConfirmText("");
-                      }}
-                      className="inline-block rounded-lg border border-red-300 px-5 py-3 font-semibold text-red-600 hover:bg-red-50"
+                  {/* Team management: only owners & producers can manage the roster. */}
+                  {(show.myRole === "owner" || show.myRole === "producer") && (
+                    <Link
+                      href={`/shows/${show.id}/team`}
+                      className="inline-block rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50"
                     >
-                      Delete
-                    </button>
+                      👥 Team
+                    </Link>
                   )}
+
+                  {/* Delete is owner-only. */}
+                  {show.myRole === "owner" &&
+                    (confirmingShowId === show.id ? null : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setConfirmingShowId(show.id);
+                          setConfirmText("");
+                        }}
+                        className="inline-block rounded-lg border border-red-300 px-5 py-3 font-semibold text-red-600 hover:bg-red-50"
+                      >
+                        Delete
+                      </button>
+                    ))}
                 </div>
 
                 {confirmingShowId === show.id && (

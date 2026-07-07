@@ -16,10 +16,28 @@ export async function getShows(): Promise<Show[]> {
 
   if (!user) return [];
 
+  // Phase 8: a user sees every show they are a MEMBER of (owner OR invited
+  // team member), not just shows they created. We read their membership rows
+  // (RLS returns only their own), then load those shows and tag each with the
+  // user's role so the UI can show/hide controls.
+  const { data: memberships, error: mErr } = await supabase
+    .from("show_memberships")
+    .select("show_id, role")
+    .eq("user_id", user.id);
+
+  if (mErr) throw new Error(mErr.message);
+
+  const roleByShow = new Map<string, string>();
+  for (const m of (memberships ?? []) as { show_id: string; role: string }[]) {
+    roleByShow.set(m.show_id, m.role);
+  }
+  const showIds = Array.from(roleByShow.keys());
+  if (showIds.length === 0) return [];
+
   const { data, error } = await supabase
     .from("shows")
     .select("*")
-    .eq("user_id", user.id)
+    .in("id", showIds)
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
@@ -27,12 +45,13 @@ export async function getShows(): Promise<Show[]> {
     throw new Error(error.message);
   }
 
-  return data.map((show) => ({
+  return (data ?? []).map((show) => ({
     id: show.id,
     title: show.title,
     description: show.description || "",
     status: show.status || "Draft",
     episodes: 0,
+    myRole: (roleByShow.get(show.id) as Show["myRole"]) ?? undefined,
   }));
 }
 
@@ -1755,4 +1774,72 @@ export async function markAllNotificationsRead(): Promise<void> {
     .eq("user_id", user.id)
     .is("read_at", null);
   if (error) throw new Error(error.message);
+}
+
+/* ============================================================
+ * Team memberships (#35-39, 46) — per-show teams.
+ * Reading/removing members and changing roles go through a
+ * server route because we need to resolve user emails (auth
+ * admin) and enforce owner-protection rules server-side.
+ * ============================================================ */
+
+export type ShowMember = {
+  id: string;
+  userId: string;
+  email: string | null;
+  role: "owner" | "producer" | "editor" | "host";
+  createdAt: string;
+  isYou: boolean;
+};
+
+async function authedFetch(path: string, body: unknown) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const res = await fetch(path, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(session?.access_token
+        ? { Authorization: `Bearer ${session.access_token}` }
+        : {}),
+    },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
+  return json;
+}
+
+/** List all members of a show (with emails). Any member can view the roster. */
+export async function getShowMembers(showId: string): Promise<ShowMember[]> {
+  const json = await authedFetch("/api/team/list", { showId });
+  return (json.members ?? []) as ShowMember[];
+}
+
+/** Add a member by email with a role. Owner/Producer only (enforced server-side). */
+export async function addShowMember(
+  showId: string,
+  email: string,
+  role: "producer" | "editor" | "host"
+): Promise<{ added: boolean; email: string }> {
+  const json = await authedFetch("/api/team/add", { showId, email, role });
+  return { added: Boolean(json.added), email: json.email };
+}
+
+/** Change a member's role. Owner/Producer only. Cannot change the owner's role. */
+export async function changeMemberRole(
+  showId: string,
+  userId: string,
+  role: "producer" | "editor" | "host"
+): Promise<void> {
+  await authedFetch("/api/team/role", { showId, userId, role });
+}
+
+/** Remove a member. Owner/Producer only. Cannot remove the owner. */
+export async function removeShowMember(
+  showId: string,
+  userId: string
+): Promise<void> {
+  await authedFetch("/api/team/remove", { showId, userId });
 }
