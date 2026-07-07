@@ -94,6 +94,9 @@ export async function deleteShow(id: string) {
     throw new Error(error.message);
   }
 
+  // Best-effort audit entry (fire-and-forget; never blocks the delete).
+  void logAudit(id, "show.deleted");
+
   return { id };
 }
 
@@ -333,8 +336,9 @@ export async function getAnalyticsDaily(
   } = await supabase.auth.getUser();
   if (!user) return [];
 
-  const { data, error } = await supabase.rpc("analytics_daily", {
-    owner_id: user.id,
+  // Owner is derived server-side from auth.uid() inside the *_secure wrapper,
+  // so we intentionally do NOT send an owner_id the client could spoof (#59).
+  const { data, error } = await supabase.rpc("analytics_daily_secure", {
     days,
   });
 
@@ -357,8 +361,7 @@ export async function getAnalyticsTopEpisodes(
   } = await supabase.auth.getUser();
   if (!user) return [];
 
-  const { data, error } = await supabase.rpc("analytics_top_episodes", {
-    owner_id: user.id,
+  const { data, error } = await supabase.rpc("analytics_top_episodes_secure", {
     days,
     max_rows: maxRows,
   });
@@ -383,8 +386,7 @@ export async function getAnalyticsTotals(
   } = await supabase.auth.getUser();
   if (!user) return [];
 
-  const { data, error } = await supabase.rpc("analytics_totals", {
-    owner_id: user.id,
+  const { data, error } = await supabase.rpc("analytics_totals_secure", {
     days,
   });
 
@@ -467,11 +469,16 @@ export async function updateEpisodeStatus(
     .update({ status })
     .eq("id", id)
     .eq("user_id", user.id)
-    .select("id, title, guest, status, shows(title)")
+    .select("id, title, guest, status, show_id, shows(title)")
     .single();
 
   if (error) {
     throw new Error(error.message);
+  }
+
+  // Audit true publishes (status crossing into "Published").
+  if (status === "Published" && data.show_id) {
+    void logAudit(data.show_id as string, "episode.published", data.title);
   }
 
   return {
@@ -512,11 +519,15 @@ export async function unpublishEpisode(id: string) {
     })
     .eq("id", id)
     .eq("user_id", user.id)
-    .select("id, title, guest, status, shows(title)")
+    .select("id, title, guest, status, show_id, shows(title)")
     .single();
 
   if (error) {
     throw new Error(error.message);
+  }
+
+  if (data.show_id) {
+    void logAudit(data.show_id as string, "episode.unpublished", data.title);
   }
 
   return {
@@ -1903,4 +1914,54 @@ export async function getExportUrl(showId: string): Promise<string> {
   } = await supabase.auth.getSession();
   const token = session?.access_token ?? "";
   return `/api/export/${showId}?token=${encodeURIComponent(token)}`;
+}
+
+// =====================================================================
+// Phase 12 — Audit log (#58)
+// =====================================================================
+
+/**
+ * Record an audit entry for a client-side action (best-effort; never throws).
+ * The server verifies we belong to the show and stamps the real actor, so a
+ * failed audit write must not block the action the user just performed.
+ */
+export async function logAudit(
+  showId: string,
+  action: "show.deleted" | "episode.published" | "episode.unpublished",
+  target?: string,
+  metadata?: Record<string, unknown>
+): Promise<void> {
+  try {
+    await authedFetch("/api/audit/record", { showId, action, target, metadata });
+  } catch {
+    // Best-effort only.
+  }
+}
+
+export type AuditEntry = {
+  id: string;
+  action: string;
+  actorEmail: string | null;
+  target: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+};
+
+/** Read a show's audit trail (newest first). Any member of the show may view. */
+export async function getAuditLog(showId: string, limit = 100): Promise<AuditEntry[]> {
+  const { data, error } = await supabase
+    .from("audit_log")
+    .select("id, action, actor_email, target, metadata, created_at")
+    .eq("show_id", showId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    action: r.action,
+    actorEmail: r.actor_email,
+    target: r.target,
+    metadata: (r.metadata ?? {}) as Record<string, unknown>,
+    createdAt: r.created_at,
+  }));
 }

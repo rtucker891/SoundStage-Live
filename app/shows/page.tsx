@@ -131,6 +131,16 @@ export default function ShowsPage() {
                     </Link>
                   )}
 
+                  {/* Activity log: any member can view the show's audit trail. */}
+                  {show.myRole && (
+                    <Link
+                      href={`/shows/${show.id}/audit`}
+                      className="inline-block rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      📜 Activity
+                    </Link>
+                  )}
+
                   {/* Export: any member can download their own copy of the show. */}
                   <button
                     type="button"

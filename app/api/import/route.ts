@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { admin, callerId } from "@/lib/teamServer";
+import { admin, callerId, emailsFor } from "@/lib/teamServer";
 import { fetchAndParseFeed, type ParsedEpisode } from "@/lib/rssImport";
+import { recordAudit } from "@/lib/audit";
+import { rateLimit, clientKey, cleanString } from "@/lib/guard";
 
 export const dynamic = "force-dynamic";
 // Copying audio for many episodes can take a while; allow a generous budget.
@@ -89,10 +91,20 @@ export async function POST(request: Request) {
   const uid = await callerId(db, request);
   if (!uid) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 
+  // Rate limit: importing is expensive (fetches a feed + copies audio). Cap it
+  // hard — 5 imports per 10 minutes per client.
+  const rl = rateLimit(clientKey(request, "import"), 5, 10 * 60_000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: `Too many imports. Try again in ${rl.retryAfterSec}s.` },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } }
+    );
+  }
+
   const body = await request.json().catch(() => ({}));
-  const feedUrl: string | undefined = body?.feedUrl;
+  const feedUrl = cleanString(body?.feedUrl, 2048);
   const copyAudio: boolean = body?.copyAudio !== false; // default: copy
-  if (!feedUrl || typeof feedUrl !== "string") {
+  if (!feedUrl) {
     return NextResponse.json({ error: "feedUrl required." }, { status: 400 });
   }
 
@@ -210,6 +222,20 @@ export async function POST(request: Request) {
       });
     }
   }
+
+  // Audit trail: who imported which feed and how many episodes landed.
+  const emails = await emailsFor(db, [uid]);
+  await recordAudit(
+    {
+      showId,
+      actorId: uid,
+      actorEmail: emails[uid] ?? null,
+      action: "show.imported",
+      target: feed.title,
+      metadata: { feedUrl, imported: created, totalInFeed: feed.episodes.length },
+    },
+    db
+  );
 
   return NextResponse.json({
     showId,

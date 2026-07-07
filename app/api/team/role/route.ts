@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { admin, callerId, roleOnShow } from "@/lib/teamServer";
+import { admin, callerId, roleOnShow, emailsFor } from "@/lib/teamServer";
+import { recordAudit } from "@/lib/audit";
+import { rateLimit, clientKey, isUuid, isOneOf } from "@/lib/guard";
 
 export const dynamic = "force-dynamic";
 
@@ -10,10 +12,17 @@ export async function POST(request: Request) {
   const db = admin();
   if (!db) return NextResponse.json({ error: "Server not configured." }, { status: 500 });
 
+  const rl = rateLimit(clientKey(request, "team-role"), 30, 60_000);
+  if (!rl.ok)
+    return NextResponse.json(
+      { error: `Too many requests. Try again in ${rl.retryAfterSec}s.` },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } }
+    );
+
   const { showId, userId, role } = await request.json().catch(() => ({}));
-  if (!showId || !userId || !role)
-    return NextResponse.json({ error: "showId, userId and role are required." }, { status: 400 });
-  if (!ALLOWED.includes(role))
+  if (!isUuid(showId) || !isUuid(userId))
+    return NextResponse.json({ error: "A valid showId and userId are required." }, { status: 400 });
+  if (!isOneOf(role, ALLOWED))
     return NextResponse.json({ error: "Invalid role." }, { status: 400 });
 
   const uid = await callerId(db, request);
@@ -36,6 +45,20 @@ export async function POST(request: Request) {
     .eq("show_id", showId)
     .eq("user_id", userId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Audit trail: who changed whose role, from what to what.
+  const emails = await emailsFor(db, [uid, userId]);
+  await recordAudit(
+    {
+      showId,
+      actorId: uid,
+      actorEmail: emails[uid] ?? null,
+      action: "member.role_changed",
+      target: emails[userId] ?? userId,
+      metadata: { from: targetRole, to: role },
+    },
+    db
+  );
 
   return NextResponse.json({ ok: true });
 }

@@ -6,6 +6,9 @@ import {
   findUserIdByEmail,
 } from "@/lib/teamServer";
 import { createNotification } from "@/lib/notify";
+import { recordAudit } from "@/lib/audit";
+import { emailsFor } from "@/lib/teamServer";
+import { rateLimit, clientKey, isUuid, isEmail, isOneOf } from "@/lib/guard";
 
 export const dynamic = "force-dynamic";
 
@@ -16,10 +19,20 @@ export async function POST(request: Request) {
   const db = admin();
   if (!db) return NextResponse.json({ error: "Server not configured." }, { status: 500 });
 
+  // Throttle member-adds (each scans the user list): 30/min per client.
+  const rl = rateLimit(clientKey(request, "team-add"), 30, 60_000);
+  if (!rl.ok)
+    return NextResponse.json(
+      { error: `Too many requests. Try again in ${rl.retryAfterSec}s.` },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } }
+    );
+
   const { showId, email, role } = await request.json().catch(() => ({}));
-  if (!showId || !email || !role)
-    return NextResponse.json({ error: "showId, email and role are required." }, { status: 400 });
-  if (!ALLOWED.includes(role))
+  if (!isUuid(showId))
+    return NextResponse.json({ error: "A valid showId is required." }, { status: 400 });
+  if (!isEmail(email))
+    return NextResponse.json({ error: "A valid email is required." }, { status: 400 });
+  if (!isOneOf(role, ALLOWED))
     return NextResponse.json({ error: "Invalid role." }, { status: 400 });
 
   const uid = await callerId(db, request);
@@ -66,6 +79,20 @@ export async function POST(request: Request) {
     body: `You're now a ${role} on this show.`,
     link: "/shows",
   });
+
+  // Audit trail: who added whom, with what role.
+  const emails = await emailsFor(db, [uid]);
+  await recordAudit(
+    {
+      showId,
+      actorId: uid,
+      actorEmail: emails[uid] ?? null,
+      action: "member.added",
+      target: email,
+      metadata: { role },
+    },
+    db
+  );
 
   return NextResponse.json({ added: true, email });
 }

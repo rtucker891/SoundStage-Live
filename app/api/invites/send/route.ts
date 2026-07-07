@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendEmail, guestInviteEmail } from "@/lib/email";
+import { rateLimit, clientKey, cleanString } from "@/lib/guard";
 
 export const dynamic = "force-dynamic";
 
@@ -32,10 +33,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Server is not configured." }, { status: 500 });
   }
 
+  // Sends an email — throttle to 15/min per client to blunt abuse.
+  const rl = rateLimit(clientKey(request, "invites-send"), 15, 60_000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: `Too many requests. Try again in ${rl.retryAfterSec}s.` },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } }
+    );
+  }
+
   let token = "";
   try {
     const body = await request.json();
-    token = body?.token || "";
+    token = cleanString(body?.token, 512) ?? "";
   } catch {
     // ignore
   }

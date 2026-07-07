@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { admin, roleOnShow } from "@/lib/teamServer";
+import { rateLimit, clientKey, isUuid } from "@/lib/guard";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,17 @@ export async function GET(request: Request, { params }: Props) {
   const db = admin();
   if (!db) return NextResponse.json({ error: "Server not configured." }, { status: 500 });
 
+  // Exports read the full show + episodes + notes — throttle to 10/min per client.
+  const rl = rateLimit(clientKey(request, "export"), 10, 60_000);
+  if (!rl.ok)
+    return NextResponse.json(
+      { error: `Too many requests. Try again in ${rl.retryAfterSec}s.` },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } }
+    );
+
   const { showId } = await params;
+  if (!isUuid(showId))
+    return NextResponse.json({ error: "A valid showId is required." }, { status: 400 });
   const token = new URL(request.url).searchParams.get("token") || "";
   if (!token) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 

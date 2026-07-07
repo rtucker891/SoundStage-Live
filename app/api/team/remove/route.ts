@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { admin, callerId, roleOnShow } from "@/lib/teamServer";
+import { admin, callerId, roleOnShow, emailsFor } from "@/lib/teamServer";
+import { recordAudit } from "@/lib/audit";
+import { rateLimit, clientKey, isUuid } from "@/lib/guard";
 
 export const dynamic = "force-dynamic";
 
@@ -12,9 +14,16 @@ export async function POST(request: Request) {
   const db = admin();
   if (!db) return NextResponse.json({ error: "Server not configured." }, { status: 500 });
 
+  const rl = rateLimit(clientKey(request, "team-remove"), 30, 60_000);
+  if (!rl.ok)
+    return NextResponse.json(
+      { error: `Too many requests. Try again in ${rl.retryAfterSec}s.` },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } }
+    );
+
   const { showId, userId } = await request.json().catch(() => ({}));
-  if (!showId || !userId)
-    return NextResponse.json({ error: "showId and userId are required." }, { status: 400 });
+  if (!isUuid(showId) || !isUuid(userId))
+    return NextResponse.json({ error: "A valid showId and userId are required." }, { status: 400 });
 
   const uid = await callerId(db, request);
   if (!uid) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
@@ -42,6 +51,20 @@ export async function POST(request: Request) {
     .eq("show_id", showId)
     .eq("user_id", userId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Audit trail: who removed whom (or left).
+  const emails = await emailsFor(db, [uid, userId]);
+  await recordAudit(
+    {
+      showId,
+      actorId: uid,
+      actorEmail: emails[uid] ?? null,
+      action: "member.removed",
+      target: emails[userId] ?? userId,
+      metadata: { removedRole: targetRole, self: removingSelf },
+    },
+    db
+  );
 
   return NextResponse.json({ ok: true });
 }
