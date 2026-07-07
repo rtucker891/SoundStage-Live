@@ -5,8 +5,9 @@ import { useEffect, useState } from "react";
 
 import AppShell from "@/components/AppShell";
 import CreateShowForm from "@/components/shows/CreateShowForm";
+import ImportShowPanel from "@/components/shows/ImportShowPanel";
 
-import { deleteShow, getShows } from "@/lib/api";
+import { deleteShow, getShows, getExportUrl } from "@/lib/api";
 
 import type { Show } from "@/types/show";
 
@@ -54,9 +55,9 @@ export default function ShowsPage() {
           </p>
         </div>
 
-        <button className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white">
-          New Show
-        </button>
+        <ImportShowPanel
+          onImported={(newShow) => setShows((prev) => [newShow, ...prev])}
+        />
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-3">
@@ -129,6 +130,18 @@ export default function ShowsPage() {
                       👥 Team
                     </Link>
                   )}
+
+                  {/* Export: any member can download their own copy of the show. */}
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const url = await getExportUrl(show.id);
+                      window.location.href = url;
+                    }}
+                    className="inline-block rounded-lg border border-slate-300 px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    ⬆ Export
+                  </button>
 
                   {/* Delete is owner-only. */}
                   {show.myRole === "owner" &&

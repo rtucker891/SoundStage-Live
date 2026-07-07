@@ -1843,3 +1843,64 @@ export async function removeShowMember(
 ): Promise<void> {
   await authedFetch("/api/team/remove", { showId, userId });
 }
+
+// =====================================================================
+// Phase 11 — Data portability (#55 import, #56 export)
+// =====================================================================
+
+/** A lightweight preview of an external RSS feed before importing it (#55). */
+export type ImportPreview = {
+  title: string;
+  description: string;
+  author: string | null;
+  imageUrl: string | null;
+  language: string | null;
+  explicit: boolean;
+  itunesCategory: string | null;
+  itunesSubcategory: string | null;
+  episodeCount: number;
+  episodesWithAudio: number;
+  sampleTitles: string[];
+};
+
+/** Fetch + parse an external podcast RSS feed for review. Writes nothing. */
+export async function previewImport(feedUrl: string): Promise<ImportPreview> {
+  const json = await authedFetch("/api/import/preview", { feedUrl });
+  return json.preview as ImportPreview;
+}
+
+export type ImportResult = {
+  showId: string;
+  showTitle: string;
+  totalInFeed: number;
+  imported: number;
+  cappedAt: number | null;
+  audioCopied: number;
+  audioLinked: number;
+};
+
+/**
+ * Import a show from an external RSS feed. Creates the show + episodes and
+ * (when copyAudio is true) copies each episode's audio into our storage.
+ */
+export async function importFromRss(
+  feedUrl: string,
+  copyAudio: boolean
+): Promise<ImportResult> {
+  const json = await authedFetch("/api/import", { feedUrl, copyAudio });
+  return json as ImportResult;
+}
+
+/**
+ * Build the export URL for a show. We navigate the browser straight to this
+ * authenticated endpoint so the browser downloads the JSON file (#56). The
+ * access token is passed as a query param because a plain link can't set an
+ * Authorization header.
+ */
+export async function getExportUrl(showId: string): Promise<string> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const token = session?.access_token ?? "";
+  return `/api/export/${showId}?token=${encodeURIComponent(token)}`;
+}
