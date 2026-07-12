@@ -1,23 +1,2 @@
 import Link from "next/link";
-
-export default function SoundStageLogo() {
-  return (
-    <Link href="/" className="flex items-center gap-3">
-      <img
-        src="/logo.png"
-        alt="SoundStage Live"
-        className="h-14 w-auto"
-      />
-
-      <div>
-        <div className="text-3xl font-black">
-          SoundStage Live
-        </div>
-
-        <div className="text-xs uppercase tracking-widest text-slate-500">
-          Create. Publish. Be Heard.
-        </div>
-      </div>
-    </Link>
-  );
-}
+export default function SoundStageLogo({compact=false}:{compact?:boolean}){return <Link href="/" aria-label="SoundStage Live home" className="flex items-center gap-2.5 text-current"><svg viewBox="0 0 48 48" aria-hidden className={compact?"h-8 w-8":"h-10 w-10"}><defs><linearGradient id="soundstage-mark" x1="5" y1="4" x2="43" y2="44" gradientUnits="userSpaceOnUse"><stop stopColor="#ff83b1"/><stop offset="1" stopColor="#7258e8"/></linearGradient></defs><rect width="48" height="48" rx="15" fill="url(#soundstage-mark)"/><path d="M15 25.5v-3M20.5 31V17M26 35V13M31.5 30V18M37 26v-4" stroke="white" strokeWidth="3" strokeLinecap="round"/></svg><div className="leading-none"><span className={`${compact?"text-[15px]":"text-lg"} font-bold tracking-[-.03em]`}>SoundStage</span><span className="ml-1 font-serif italic text-[#ff83b1]">Live</span>{!compact&&<span className="mt-1 block text-[8px] font-semibold uppercase tracking-[.2em] opacity-45">Create. Publish. Be Heard.</span>}</div></Link>}
