@@ -19,7 +19,8 @@ export type AuditAction =
   | "member.removed"
   | "member.role_changed"
   | "episode.published"
-  | "episode.unpublished";
+  | "episode.unpublished"
+  | "episode.ai_generated";
 
 function admin(): SupabaseClient | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

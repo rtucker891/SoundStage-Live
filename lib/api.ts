@@ -594,6 +594,38 @@ export async function updateEpisode(data: {
   };
 }
 
+/**
+ * Update just an episode's title. Used by the Live-to-Published Studio review
+ * screen so a creator can accept an AI-suggested title before publishing,
+ * without touching guest/status/show. Scoped to the current user's own episode.
+ */
+export async function updateEpisodeTitle(id: string, title: string) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("Not signed in");
+  }
+
+  const clean = title.trim();
+  if (!clean) throw new Error("Title cannot be empty.");
+
+  const { data, error } = await supabase
+    .from("episodes")
+    .update({ title: clean })
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .select("id, title")
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return { id: data.id, title: data.title };
+}
+
 export async function getRecordings(): Promise<Recording[]> {
   const {
     data: { user },

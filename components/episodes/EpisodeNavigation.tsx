@@ -26,6 +26,13 @@ export default function EpisodeNavigation({
       </Link>
 
       <Link
+        href={`/episodes/${episodeId}/live-studio`}
+        className="rounded-lg bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-4 py-2 font-semibold text-white"
+      >
+        AI Studio
+      </Link>
+
+      <Link
         href={`/episodes/${episodeId}/assets`}
         className="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white"
       >
