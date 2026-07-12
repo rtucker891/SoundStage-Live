@@ -21,45 +21,69 @@ export default function PricingPage() {
           </p>
         </section>
 
-        <section className="mt-10 grid gap-6 md:grid-cols-3">
+        <section className="mt-10 grid items-start gap-6 md:grid-cols-3">
           <div className="rounded-2xl bg-white p-6 shadow">
-            <h2 className="text-2xl font-bold">Creator Lite</h2>
-            <p className="mt-2 text-slate-600">For solo podcasters getting started.</p>
-            <p className="mt-6 text-4xl font-bold">$19/mo</p>
+            <h2 className="text-2xl font-bold">Free</h2>
+            <p className="mt-2 text-slate-600">For getting your first show off the ground.</p>
+            <p className="mt-6 text-4xl font-bold">
+              $0<span className="text-lg font-medium text-slate-500">/mo</span>
+            </p>
 
             <ul className="mt-6 space-y-3 text-slate-600">
-              <li>✓ Create shows</li>
-              <li>✓ Create episodes</li>
-              <li>✓ Browser recording</li>
-              <li>✓ Public episode pages</li>
+              <li>✓ 1 show, up to 5 published episodes</li>
+              <li>✓ Browser recording &amp; storage</li>
+              <li>✓ Publish to Apple, Spotify &amp; more</li>
+              <li>✓ AI toolkit (transcripts &amp; show notes)</li>
+              <li>✓ Basic analytics</li>
             </ul>
           </div>
 
           <div className="rounded-2xl border-2 border-indigo-600 bg-white p-6 shadow-xl">
             <p className="text-sm font-semibold text-indigo-600">Most Popular</p>
-            <h2 className="mt-2 text-2xl font-bold">Creator Pro</h2>
-            <p className="mt-2 text-slate-600">For serious creators and small teams.</p>
-            <p className="mt-6 text-4xl font-bold">$49/mo</p>
+            <h2 className="mt-2 text-2xl font-bold">Creator</h2>
+            <p className="mt-2 text-slate-600">For serious creators ready to grow.</p>
+            <p className="mt-6 text-4xl font-bold">
+              $12<span className="text-lg font-medium text-slate-500">/mo</span>
+            </p>
+            <p className="text-sm text-slate-500">or $120/yr — save 2 months</p>
 
             <ul className="mt-6 space-y-3 text-slate-600">
-              <li>✓ Everything in Lite</li>
-              <li>✓ AI transcripts</li>
-              <li>✓ AI show notes</li>
-              <li>✓ Cover art uploads</li>
-              <li>✓ Public show pages</li>
+              <li>✓ Everything in Free</li>
+              <li>✓ Up to 3 shows, unlimited episodes</li>
+              <li>✓ Live streaming</li>
+              <li>✓ Full analytics</li>
+              <li>✓ 3 team seats</li>
+              <li>✓ Import your existing show (RSS)</li>
             </ul>
           </div>
 
           <div className="rounded-2xl bg-white p-6 shadow">
             <h2 className="text-2xl font-bold">Studio</h2>
-            <p className="mt-2 text-slate-600">For agencies, networks, and media teams.</p>
-            <p className="mt-6 text-4xl font-bold">Custom</p>
+            <p className="mt-2 text-slate-600">For power creators, teams, and networks.</p>
+            <p className="mt-6 text-4xl font-bold">
+              $29<span className="text-lg font-medium text-slate-500">/mo</span>
+            </p>
+            <p className="text-sm text-slate-500">or $290/yr — save 2 months</p>
+
+            <div className="mt-6 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 p-px">
+              <div className="rounded-[11px] bg-white p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
+                  New · Studio exclusive
+                </p>
+                <p className="mt-1 font-bold text-slate-900">AI Episode Studio</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  Finish recording, click once, and get a publish-ready episode —
+                  transcript, title, show notes, chapters, dead-air trim &amp; a
+                  shareable audiogram. Your live show with a producer built in.
+                </p>
+              </div>
+            </div>
 
             <ul className="mt-6 space-y-3 text-slate-600">
-              <li>✓ Multi-show management</li>
-              <li>✓ Team workflows</li>
-              <li>✓ Advanced publishing</li>
-              <li>✓ Future RSS distribution</li>
+              <li>✓ Everything in Creator</li>
+              <li>✓ Unlimited shows &amp; episodes</li>
+              <li>✓ Advanced analytics + export</li>
+              <li>✓ 15 team seats</li>
               <li>✓ Priority support</li>
             </ul>
           </div>
