@@ -23,6 +23,7 @@ import {
   uploadFileToStorage,
 } from "@/lib/api";
 import { addIntroOutro } from "@/lib/audio/addIntroOutro";
+import { compressForTranscription } from "@/lib/audio/compressForTranscription";
 
 import type { Asset } from "@/types/asset";
 import type { Episode } from "@/types/episode";
@@ -37,6 +38,52 @@ async function authHeaders(): Promise<Record<string, string>> {
   return session?.access_token
     ? { Authorization: `Bearer ${session.access_token}` }
     : {};
+}
+
+/**
+ * Safely parse the /api/ai/transcribe response. Infrastructure (e.g. Vercel's
+ * "Request Entity Too Large") can return PLAIN TEXT, not JSON, so we never call
+ * response.json() blindly — that's what produced the "Unexpected token 'R'"
+ * error. We check status + content-type and surface a clear message instead.
+ */
+async function parseTranscribeResponse(
+  response: Response
+): Promise<{ text: string }> {
+  const contentType = response.headers.get("content-type") || "";
+  const isJson = contentType.includes("application/json");
+
+  if (!response.ok) {
+    // 413 is the body-size limit — most likely even the compressed audio is too
+    // big (a very long recording). Give an actionable message.
+    if (response.status === 413) {
+      throw new Error(
+        "The recording is too large to transcribe, even after compression. Try a shorter recording."
+      );
+    }
+
+    if (isJson) {
+      const data = await response.json().catch(() => null);
+      throw new Error(data?.message || "Transcription failed.");
+    }
+
+    const text = (await response.text().catch(() => "")).trim();
+    throw new Error(
+      text
+        ? `Transcription failed: ${text}`
+        : `Transcription failed (HTTP ${response.status}).`
+    );
+  }
+
+  if (!isJson) {
+    const text = (await response.text().catch(() => "")).trim();
+    throw new Error(
+      text
+        ? `Unexpected non-JSON response: ${text}`
+        : "Unexpected non-JSON response from the server."
+    );
+  }
+
+  return response.json();
 }
 
 export default function EpisodeEditorPage() {
@@ -204,19 +251,25 @@ export default function EpisodeEditorPage() {
       }
       const audioBlob = await audioResponse.blob();
 
-      const formData = new FormData();
-      formData.append("file", audioBlob, recordingAsset.fileName);
+      // Compress to a small, speech-optimized MP3 in the browser BEFORE upload.
+      // Full recordings routinely exceed the serverless route's ~4.5MB body
+      // limit; this shrinks them ~10-20x. The original recording is untouched.
+      setTranscriptMessage("Compressing audio\u2026");
+      const compressedBlob = await compressForTranscription({
+        source: audioBlob,
+        onProgress: (message) => setTranscriptMessage(message),
+      });
 
+      const formData = new FormData();
+      formData.append("file", compressedBlob, "transcription-audio.mp3");
+
+      setTranscriptMessage("Transcribing\u2026");
       const response = await fetch("/api/ai/transcribe", {
         method: "POST",
         body: formData,
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Transcription failed.");
-      }
+      const data = await parseTranscribeResponse(response);
 
       const created = await createTranscript({
         episodeId: episode.id,

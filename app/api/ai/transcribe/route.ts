@@ -14,13 +14,21 @@ export async function POST(request: Request) {
     );
   }
 
-  const transcription =
-    await getOpenAI().audio.transcriptions.create({
-      file,
-      model: "gpt-4o-mini-transcribe",
-    });
+  try {
+    const transcription =
+      await getOpenAI().audio.transcriptions.create({
+        file,
+        model: "gpt-4o-mini-transcribe",
+      });
 
-  return NextResponse.json({
-    text: transcription.text,
-  });
+    return NextResponse.json({
+      text: transcription.text,
+    });
+  } catch (err) {
+    // Never let this route return non-JSON: on any OpenAI/SDK failure, respond
+    // with a JSON error so the client's parser always has JSON to work with.
+    const message =
+      err instanceof Error ? err.message : "Transcription failed.";
+    return NextResponse.json({ message }, { status: 502 });
+  }
 }
