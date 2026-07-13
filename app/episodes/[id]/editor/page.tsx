@@ -24,6 +24,7 @@ import {
 } from "@/lib/api";
 import { addIntroOutro } from "@/lib/audio/addIntroOutro";
 import { compressForTranscription } from "@/lib/audio/compressForTranscription";
+import { chunkForTranscription } from "@/lib/audio/chunkForTranscription";
 
 import type { Asset } from "@/types/asset";
 import type { Episode } from "@/types/episode";
@@ -84,6 +85,30 @@ async function parseTranscribeResponse(
   }
 
   return response.json();
+}
+
+/**
+ * Below this many bytes we send the compressed audio in a SINGLE request, just
+ * like before. At or above it we split into chunks. Vercel rejects request
+ * bodies over ~4.5MB, so we stay comfortably under with a 4,000,000-byte cap.
+ */
+const SINGLE_REQUEST_MAX_BYTES = 4_000_000;
+
+/**
+ * POST one audio Blob to the transcription route and return its text. The
+ * filename is only a label for the upload; the route reads the bytes.
+ */
+async function transcribeBlob(blob: Blob, fileName: string): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", blob, fileName);
+
+  const response = await fetch("/api/ai/transcribe", {
+    method: "POST",
+    body: formData,
+  });
+
+  const data = await parseTranscribeResponse(response);
+  return data.text;
 }
 
 export default function EpisodeEditorPage() {
@@ -260,16 +285,44 @@ export default function EpisodeEditorPage() {
         onProgress: (message) => setTranscriptMessage(message),
       });
 
-      const formData = new FormData();
-      formData.append("file", compressedBlob, "transcription-audio.mp3");
+      // Small enough for one upload: send it exactly as before. Otherwise the
+      // compressed file still exceeds the serverless body limit, so we split it
+      // into time-based chunks and transcribe each one in order.
+      let transcriptText: string;
+      if (compressedBlob.size < SINGLE_REQUEST_MAX_BYTES) {
+        setTranscriptMessage("Transcribing\u2026");
+        transcriptText = await transcribeBlob(
+          compressedBlob,
+          "transcription-audio.mp3"
+        );
+      } else {
+        setTranscriptMessage("Splitting audio into parts\u2026");
+        const chunks = await chunkForTranscription({
+          source: compressedBlob,
+          onProgress: (message) => setTranscriptMessage(message),
+        });
 
-      setTranscriptMessage("Transcribing\u2026");
-      const response = await fetch("/api/ai/transcribe", {
-        method: "POST",
-        body: formData,
-      });
+        // Transcribe SEQUENTIALLY (no Promise.all) to keep chunks in order and
+        // avoid hammering the transcription API. If any part fails we stop
+        // immediately and never save a partial transcript.
+        const parts: string[] = [];
+        for (let i = 0; i < chunks.length; i++) {
+          setTranscriptMessage(
+            `Transcribing part ${i + 1} of ${chunks.length}\u2026`
+          );
+          try {
+            const text = await transcribeBlob(chunks[i], `part-${i}.mp3`);
+            parts.push(text);
+          } catch (err) {
+            const partMsg = err instanceof Error ? err.message : String(err);
+            throw new Error(
+              `Transcription failed on part ${i + 1} of ${chunks.length}: ${partMsg}`
+            );
+          }
+        }
 
-      const data = await parseTranscribeResponse(response);
+        transcriptText = parts.join("\n\n");
+      }
 
       const created = await createTranscript({
         episodeId: episode.id,
@@ -279,7 +332,7 @@ export default function EpisodeEditorPage() {
             speaker: "Speaker",
             startTime: 0,
             endTime: 0,
-            text: data.text,
+            text: transcriptText,
           },
         ],
       });
