@@ -1,30 +1,35 @@
 /**
- * lib/plan.ts — SERVER-ONLY subscription-tier gating for the premium
- * "Live-to-Published AI Episode Studio" (flagship, Studio-tier only).
+ * lib/plan.ts — SERVER-ONLY subscription-tier gating.
  *
- * SINGLE SOURCE OF TRUTH for "is this user Studio tier?". Everything that gates
- * the AI Studio (the orchestration endpoint + the /api/plan lookup the UI uses
- * to show locked vs. unlocked) resolves the plan through getPlan() here.
+ * SINGLE SOURCE OF TRUTH for "what plan is this user on?". Everything that gates
+ * features (the AI Studio orchestration endpoint + the /api/plan lookup the UI
+ * uses to show locked vs. unlocked) resolves the plan through getPlan() here.
  *
- * ⚠️ Billing (Stripe) is NOT built yet. Real enforcement — webhooks writing the
- * plan on checkout/cancel — lands with the Stripe build. Until then the plan is
- * resolved, in priority order, from:
- *   1. A `profiles.plan` column, IF that table/column exists (best-effort read;
- *      any error, e.g. the table not existing, is swallowed and we fall through).
- *   2. The STUDIO_USER_IDS env var (comma-separated user ids) — lets us mark a
- *      user 'studio' for testing without any billing wired up.
+ * Plans are now backed by REAL Stripe subscriptions (see lib/stripe/* and the
+ * `subscriptions` table). getPlan resolves, in priority order:
+ *   1. The `subscriptions` row for the user, IF it exists and the subscription
+ *      is active/trialing — the row's `plan` is authoritative. Any error (e.g.
+ *      the table not existing before the migration is applied) is swallowed and
+ *      we fall through, so the app keeps working pre-migration.
+ *   2. The STUDIO_USER_IDS env var (comma-separated user ids) — a manual bypass
+ *      that marks a user 'studio' for testing without touching billing.
  *   3. Default: 'free'.
- *
- * When Stripe arrives, point step 1 at whatever table the webhook updates
- * (e.g. `subscriptions.plan`) and keep the rest of the app unchanged.
  */
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-export type Plan = "free" | "studio";
+export type Plan = "free" | "creator" | "studio";
 
 /** True if the given plan unlocks the premium AI Studio pipeline. */
 export function isStudioPlan(plan: Plan): boolean {
   return plan === "studio";
+}
+
+/** Subscription statuses that grant the row's paid plan. */
+const ACTIVE_STATUSES = new Set(["active", "trialing"]);
+
+/** Normalize an arbitrary stored plan string to a known Plan. */
+function normalizePlan(value: unknown): Plan {
+  return value === "studio" || value === "creator" ? value : "free";
 }
 
 /** User ids marked Studio via env config (test/manual override, no billing). */
@@ -40,28 +45,30 @@ function studioIdsFromEnv(): Set<string> {
 
 /**
  * Resolve a user's plan. `db` is a service-role client (from teamServer.admin())
- * used for the best-effort profile read; pass null to skip the DB lookup.
+ * used to read the subscription row; pass null to skip the DB lookup.
  * Never throws — always resolves to a concrete plan.
  */
 export async function getPlan(
   db: SupabaseClient | null,
   userId: string
 ): Promise<Plan> {
-  // 1. Best-effort: a `profiles.plan` column, if the table exists.
+  // 1. Authoritative: the user's Stripe-backed subscription row.
   if (db) {
     try {
       const { data, error } = await db
-        .from("profiles")
-        .select("plan")
-        .eq("id", userId)
+        .from("subscriptions")
+        .select("plan, status")
+        .eq("user_id", userId)
         .maybeSingle();
-      if (!error && data?.plan === "studio") return "studio";
+      if (!error && data && ACTIVE_STATUSES.has(String(data.status))) {
+        return normalizePlan(data.plan);
+      }
     } catch {
-      // Table/column may not exist yet (pre-Stripe) — fall through.
+      // Table may not exist yet (pre-migration) — fall through.
     }
   }
 
-  // 2. Env override for testing without billing.
+  // 2. Env override for manual testing without billing.
   if (studioIdsFromEnv().has(userId)) return "studio";
 
   // 3. Default.

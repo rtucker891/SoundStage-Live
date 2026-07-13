@@ -1,5 +1,6 @@
 import AppShell from "@/components/AppShell";
 import ChangePasswordForm from "@/components/settings/ChangePasswordForm";
+import ManageBilling from "@/components/settings/ManageBilling";
 
 export default function SettingsPage() {
   return (
@@ -53,6 +54,8 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+
+        <ManageBilling />
 
         <ChangePasswordForm />
       </div>

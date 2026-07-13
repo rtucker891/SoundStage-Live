@@ -32,7 +32,11 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/");
+    // Honor a ?next= destination (e.g. returning to /pricing after sign in),
+    // but only accept in-app relative paths so it can't be used as an open
+    // redirect.
+    const next = new URLSearchParams(window.location.search).get("next");
+    router.push(next && next.startsWith("/") ? next : "/");
   }
 
   return (
