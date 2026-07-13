@@ -6,8 +6,10 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
 import AppShell from "@/components/AppShell";
+import { supabase } from "@/lib/supabaseClient";
 import {
   createAsset,
+  createRecording,
   createShowNote,
   createTranscript,
   getAssets,
@@ -18,12 +20,24 @@ import {
   updateEpisodeStatus,
   updateShowNote,
   updateTranscript,
+  uploadFileToStorage,
 } from "@/lib/api";
+import { addIntroOutro } from "@/lib/audio/addIntroOutro";
 
 import type { Asset } from "@/types/asset";
 import type { Episode } from "@/types/episode";
+import type { Plan } from "@/lib/plan";
 import type { ShowNote } from "@/types/show-note";
 import type { Transcript } from "@/types/transcript";
+
+async function authHeaders(): Promise<Record<string, string>> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  return session?.access_token
+    ? { Authorization: `Bearer ${session.access_token}` }
+    : {};
+}
 
 export default function EpisodeEditorPage() {
   const params = useParams();
@@ -45,6 +59,20 @@ export default function EpisodeEditorPage() {
   const [coverArtPrompt, setCoverArtPrompt] = useState("");
   const [generatingArtwork, setGeneratingArtwork] = useState(false);
   const [artworkMessage, setArtworkMessage] = useState("");
+
+  // Intro / Outro Music. The plan gates access (creator/studio only). The
+  // combined result is previewed as a blob URL before the user saves it, and
+  // saving creates a NEW recording so the original is never overwritten.
+  const [plan, setPlan] = useState<Plan | null>(null);
+  const [introFile, setIntroFile] = useState<File | null>(null);
+  const [outroFile, setOutroFile] = useState<File | null>(null);
+  const [crossfadeEnabled, setCrossfadeEnabled] = useState(false);
+  const [crossfadeSeconds, setCrossfadeSeconds] = useState(1);
+  const [processingMusic, setProcessingMusic] = useState(false);
+  const [musicMessage, setMusicMessage] = useState("");
+  const [combinedUrl, setCombinedUrl] = useState("");
+  const [combinedBlob, setCombinedBlob] = useState<Blob | null>(null);
+  const [savingMusic, setSavingMusic] = useState(false);
 
   // Show-notes editing state. When editing is true, the read-only view is
   // swapped for editable fields. The "draft" values hold in-progress edits so
@@ -79,6 +107,16 @@ export default function EpisodeEditorPage() {
 
   useEffect(() => {
     async function load() {
+      // Resolve the caller's plan so we can lock the Intro/Outro feature for
+      // free users. Same signal the AI Studio uses; the value is UX-only.
+      try {
+        const res = await fetch("/api/plan", { headers: await authHeaders() });
+        const json = (await res.json()) as { plan?: Plan };
+        setPlan(json.plan ?? "free");
+      } catch {
+        setPlan("free");
+      }
+
       const episodes = await getEpisodes();
 
       const selectedEpisode = episodes.find(
@@ -698,6 +736,100 @@ export default function EpisodeEditorPage() {
       setGeneratingArtwork(false);
     }
   }
+
+  // Build the combined intro -> episode -> outro MP3 in the browser and show a
+  // preview. Nothing is uploaded here — the user reviews it first.
+  async function applyMusic() {
+    if (processingMusic) return;
+    if (!recordingAsset?.url) {
+      setMusicMessage(
+        "No episode recording found to add music to. Add a recording first."
+      );
+      return;
+    }
+    if (!introFile && !outroFile) {
+      setMusicMessage("Choose an intro and/or outro clip first.");
+      return;
+    }
+
+    setProcessingMusic(true);
+    setMusicMessage("Loading audio engine…");
+    // Release any previous preview URL before making a new one.
+    if (combinedUrl) URL.revokeObjectURL(combinedUrl);
+    setCombinedUrl("");
+    setCombinedBlob(null);
+
+    try {
+      const blob = await addIntroOutro(
+        {
+          episode: recordingAsset.url,
+          intro: introFile,
+          outro: outroFile,
+          crossfadeSeconds: crossfadeEnabled ? crossfadeSeconds : 0,
+          onProgress: (message) => setMusicMessage(message),
+        }
+      );
+
+      const url = URL.createObjectURL(blob);
+      setCombinedBlob(blob);
+      setCombinedUrl(url);
+      setMusicMessage("Preview ready. Save it to attach it to this episode.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setMusicMessage(`Could not combine audio: ${msg}`);
+    } finally {
+      setProcessingMusic(false);
+    }
+  }
+
+  // Upload the combined MP3 as a NEW recording + asset. The original recording
+  // row/file is left untouched, so the action is fully reversible.
+  async function saveMusic() {
+    if (!episode || !combinedBlob || savingMusic) return;
+
+    setSavingMusic(true);
+    setMusicMessage("Saving combined episode…");
+
+    try {
+      const file = new File(
+        [combinedBlob],
+        `episode-with-music-${Date.now()}.mp3`,
+        { type: "audio/mpeg" }
+      );
+
+      const uploaded = await uploadFileToStorage(
+        file,
+        `episodes/${episode.id}/recordings`
+      );
+
+      await createRecording({
+        episodeId: episode.id,
+        name: `With intro/outro ${new Date().toLocaleTimeString()}`,
+        duration: 0,
+        audioUrl: uploaded.url,
+      });
+
+      await createAsset({
+        episodeId: episode.id,
+        name: "Episode with intro/outro",
+        type: "recording",
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: "audio/mpeg",
+        url: uploaded.url,
+      });
+
+      setMusicMessage(
+        "Saved as a new recording. Your original recording is untouched."
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setMusicMessage(`Could not save combined episode: ${msg}`);
+    } finally {
+      setSavingMusic(false);
+    }
+  }
+
   return (
     <AppShell>
       {loading ? (
@@ -1371,6 +1503,172 @@ export default function EpisodeEditorPage() {
                 >
                   Download Cover Art
                 </a>
+              </>
+            )}
+          </div>
+
+          {/* Intro / Outro Music */}
+          <div className="mt-8 rounded-2xl border border-teal-200 bg-gradient-to-br from-white to-teal-50 p-6 shadow">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-wide text-teal-600">
+                  Audio Production
+                </p>
+                <h2 className="text-2xl font-bold text-slate-900">
+                  Intro / Outro Music
+                </h2>
+              </div>
+              <span className="rounded-full bg-teal-100 px-3 py-1 text-sm font-semibold text-teal-700">
+                Client-side
+              </span>
+            </div>
+
+            {plan === null ? (
+              <p className="mt-2 text-sm text-slate-500">Checking your plan…</p>
+            ) : plan === "free" ? (
+              // Locked state for free users — mirrors the AI Studio gate.
+              <div className="mt-4 rounded-xl border border-teal-200 bg-white p-6">
+                <p className="text-lg font-bold text-slate-900">
+                  🔒 Add branded intro &amp; outro music
+                </p>
+                <p className="mt-2 text-slate-600">
+                  Top and tail every episode with your own intro and outro,
+                  optionally crossfaded — all processed privately in your
+                  browser. Available on the Creator and Studio plans.
+                </p>
+                <a
+                  href="/pricing"
+                  className="mt-4 inline-block rounded-lg border border-teal-300 px-5 py-3 font-semibold text-teal-700 hover:bg-teal-50"
+                >
+                  Upgrade to unlock
+                </a>
+              </div>
+            ) : (
+              <>
+                <p className="mt-2 text-slate-600">
+                  Upload a short intro and/or outro clip. We combine intro →
+                  episode → outro into one MP3, right here in your browser. Your
+                  original recording is kept — the result is saved as a new
+                  recording.
+                </p>
+
+                {!recordingAsset?.url && (
+                  <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-700">
+                    No episode recording found yet. Add a recording before
+                    combining music.
+                  </p>
+                )}
+
+                <div className="mt-6 grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-800">
+                      Intro clip
+                    </label>
+                    <input
+                      type="file"
+                      accept="audio/mpeg,audio/wav,audio/x-m4a,audio/mp4"
+                      onChange={(e) =>
+                        setIntroFile(e.target.files?.[0] ?? null)
+                      }
+                      disabled={processingMusic}
+                      className="mt-2 block w-full rounded-lg border border-slate-200 bg-white p-3 disabled:opacity-60"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-800">
+                      Outro clip
+                    </label>
+                    <input
+                      type="file"
+                      accept="audio/mpeg,audio/wav,audio/x-m4a,audio/mp4"
+                      onChange={(e) =>
+                        setOutroFile(e.target.files?.[0] ?? null)
+                      }
+                      disabled={processingMusic}
+                      className="mt-2 block w-full rounded-lg border border-slate-200 bg-white p-3 disabled:opacity-60"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center gap-4">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                    <input
+                      type="checkbox"
+                      checked={crossfadeEnabled}
+                      onChange={(e) => setCrossfadeEnabled(e.target.checked)}
+                      disabled={processingMusic}
+                    />
+                    Crossfade between segments
+                  </label>
+
+                  {crossfadeEnabled && (
+                    <label className="flex items-center gap-2 text-sm text-slate-700">
+                      Seconds:
+                      <input
+                        type="number"
+                        min={0}
+                        max={3}
+                        step={0.5}
+                        value={crossfadeSeconds}
+                        onChange={(e) =>
+                          setCrossfadeSeconds(
+                            Math.min(3, Math.max(0, Number(e.target.value) || 0))
+                          )
+                        }
+                        disabled={processingMusic}
+                        className="w-20 rounded-lg border border-slate-200 p-2"
+                      />
+                    </label>
+                  )}
+                </div>
+
+                <button
+                  onClick={applyMusic}
+                  disabled={
+                    processingMusic ||
+                    !recordingAsset?.url ||
+                    (!introFile && !outroFile)
+                  }
+                  className="mt-6 rounded-lg bg-teal-600 px-5 py-3 font-semibold text-white disabled:opacity-60"
+                >
+                  {processingMusic ? "Processing…" : "Apply music"}
+                </button>
+
+                {musicMessage && (
+                  <p
+                    className={
+                      musicMessage.startsWith("Could not") ||
+                      musicMessage.startsWith("No ")
+                        ? "mt-4 text-sm font-semibold text-red-600"
+                        : "mt-4 text-sm font-semibold text-slate-600"
+                    }
+                  >
+                    {musicMessage}
+                  </p>
+                )}
+
+                {combinedUrl && (
+                  <div className="mt-6 rounded-lg border border-teal-100 bg-white p-4">
+                    <p className="text-sm font-semibold text-slate-800">
+                      Preview
+                    </p>
+                    <audio
+                      controls
+                      src={combinedUrl}
+                      className="mt-3 w-full"
+                    />
+                    <button
+                      onClick={saveMusic}
+                      disabled={savingMusic}
+                      className="mt-4 rounded-lg bg-emerald-600 px-5 py-2 font-semibold text-white disabled:opacity-60"
+                    >
+                      {savingMusic
+                        ? "Saving…"
+                        : "Save as new recording"}
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </div>

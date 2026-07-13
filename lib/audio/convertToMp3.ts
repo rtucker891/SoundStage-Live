@@ -27,8 +27,11 @@ let loadPromise: Promise<FFmpeg> | null = null;
 /**
  * Lazily create and load a single shared FFmpeg instance. Loading is the
  * expensive part (downloads the WASM core), so we only do it once per session.
+ *
+ * Exported so other browser-side audio features (e.g. addIntroOutro) reuse the
+ * SAME loaded instance instead of downloading the ~25MB WASM core again.
  */
-async function getFFmpeg(
+export async function getFFmpeg(
   onProgress?: (message: string) => void
 ): Promise<FFmpeg> {
   if (ffmpegSingleton) return ffmpegSingleton;
