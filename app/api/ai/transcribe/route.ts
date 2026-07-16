@@ -1,11 +1,24 @@
 import { NextResponse } from "next/server";
 
 import { getOpenAI } from "@/lib/openai/client";
+import { requireUser } from "@/lib/apiAuth";
 
 export async function POST(request: Request) {
-  const formData = await request.formData();
+  const guard = await requireUser(request, "ai-transcribe");
+  if (!guard.ok) return guard.response;
 
-  const file = formData.get("file");
+  let file: FormDataEntryValue | null;
+  try {
+    const formData = await request.formData();
+    file = formData.get("file");
+  } catch {
+    // Malformed/absent multipart body — respond with JSON 400 instead of a
+    // bare 500 so the client's parser always has JSON to work with.
+    return NextResponse.json(
+      { message: "Invalid form data" },
+      { status: 400 }
+    );
+  }
 
   if (!(file instanceof File)) {
     return NextResponse.json(

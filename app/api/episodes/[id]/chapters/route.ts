@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+import { requireEpisodeRole } from "@/lib/apiAuth";
+
 export const dynamic = "force-dynamic";
 
 type Props = {
@@ -16,6 +18,9 @@ type Props = {
 export async function POST(request: Request, { params }: Props) {
   try {
     const { id: episodeId } = await params;
+
+    const guard = await requireEpisodeRole(request, episodeId, "episode-chapters");
+    if (!guard.ok) return guard.response;
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

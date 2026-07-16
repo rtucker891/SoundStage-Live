@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getOpenAI } from "@/lib/openai/client";
+import { requireUser } from "@/lib/apiAuth";
 
 // AI episode-title generator (used by the Live-to-Published Studio pipeline).
 //
@@ -8,6 +9,9 @@ import { getOpenAI } from "@/lib/openai/client";
 // clickable episode title options the creator can pick from. Returns STRUCTURED
 // JSON so the review UI can render each as a selectable choice.
 export async function POST(request: Request) {
+  const guard = await requireUser(request, "ai-title-options");
+  if (!guard.ok) return guard.response;
+
   try {
     const body = await request.json();
 

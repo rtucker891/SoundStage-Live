@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { getOpenAI } from "@/lib/openai/client";
+import { requireUser } from "@/lib/apiAuth";
 
 export async function POST(
   request: Request
 ) {
+  const guard = await requireUser(request, "ai-cover-art");
+  if (!guard.ok) return guard.response;
+
   try {
     const body = await request.json();
 

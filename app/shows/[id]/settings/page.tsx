@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 
 import AppShell from "@/components/AppShell";
+import { authHeaders } from "@/lib/authHeaders";
 import {
   getShowSettings,
   updateShowSettings,
@@ -246,6 +247,7 @@ export default function PodcastSettingsPage() {
 
       const res = await fetch(`/api/shows/${showId}/cover-art`, {
         method: "POST",
+        headers: await authHeaders(),
         body: formData,
       });
 

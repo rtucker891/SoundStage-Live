@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+import { requireEpisodeRole } from "@/lib/apiAuth";
+
 export const dynamic = "force-dynamic";
 
 const PUBLIC_BUCKET = "soundstage-public";
@@ -34,6 +36,14 @@ function extFromType(type: string): string {
 export async function POST(request: Request, { params }: Props) {
   try {
     const { id: episodeId } = await params;
+
+    // Authz: only a signed-in member of this episode's show may change its art.
+    const guard = await requireEpisodeRole(
+      request,
+      episodeId,
+      "episode-cover-art"
+    );
+    if (!guard.ok) return guard.response;
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

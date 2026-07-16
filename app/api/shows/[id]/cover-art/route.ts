@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+import { requireShowRole } from "@/lib/apiAuth";
+
 export const dynamic = "force-dynamic";
 
 const PRIVATE_BUCKET = "soundstage-assets";
@@ -67,6 +69,9 @@ function pathFromSignedUrl(url: string, bucket: string): string | null {
 export async function POST(request: Request, { params }: Props) {
   try {
     const { id: showId } = await params;
+
+    const guard = await requireShowRole(request, showId, "show-cover-art");
+    if (!guard.ok) return guard.response;
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

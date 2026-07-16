@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+import { requireEpisodeRole } from "@/lib/apiAuth";
+
 export const dynamic = "force-dynamic";
 
 const PRIVATE_BUCKET = "soundstage-assets";
@@ -58,8 +60,13 @@ export async function POST(request: Request, props: Props) {
   }
 }
 
-async function handlePublish(_request: Request, { params }: Props) {
+async function handlePublish(request: Request, { params }: Props) {
   const { id: episodeId } = await params;
+
+  // Authz: only a signed-in member of this episode's show may publish it.
+  // Without this, anyone could copy private audio into the public bucket.
+  const guard = await requireEpisodeRole(request, episodeId, "episode-publish");
+  if (!guard.ok) return guard.response;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

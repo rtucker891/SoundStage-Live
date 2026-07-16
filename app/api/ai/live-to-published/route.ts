@@ -51,15 +51,33 @@ function mimeFromExt(ext: string): string {
   return "application/octet-stream";
 }
 
+/**
+ * Collect the headers the downstream AI routes now require. Those routes call
+ * requireUser(), which reads the Authorization bearer token (for identity) and
+ * x-forwarded-for (for the rate-limit key). The synthesized Requests must carry
+ * them or the internal calls would 401 even though the caller here is already
+ * authenticated and plan-gated.
+ */
+function forwardedAuthHeaders(request: Request): Record<string, string> {
+  const headers: Record<string, string> = {};
+  const auth = request.headers.get("authorization");
+  if (auth) headers["authorization"] = auth;
+  const fwd =
+    request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip");
+  if (fwd) headers["x-forwarded-for"] = fwd;
+  return headers;
+}
+
 /** Invoke a JSON route handler with a synthesized Request and return its body. */
 async function callJsonRoute<T>(
   handler: (req: Request) => Promise<Response>,
-  payload: unknown
+  payload: unknown,
+  forwardHeaders: Record<string, string> = {}
 ): Promise<{ ok: boolean; data: T }> {
   const res = await handler(
     new Request("http://internal.local", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...forwardHeaders },
       body: JSON.stringify(payload),
     })
   );
@@ -133,6 +151,10 @@ export async function POST(request: Request) {
       { status: 403 }
     );
 
+  // Headers to pass into the internal AI-route calls so their requireUser()
+  // guards see the same authenticated caller (see forwardedAuthHeaders).
+  const fwdHeaders = forwardedAuthHeaders(request);
+
   // 2) Studio-tier gate (authoritative — the UI's lock state is only cosmetic).
   const plan = await getPlan(db, uid);
   if (!isStudioPlan(plan))
@@ -197,7 +219,11 @@ export async function POST(request: Request) {
     fd.append("file", file);
 
     const res = await transcribeRoute(
-      new Request("http://internal.local", { method: "POST", body: fd })
+      new Request("http://internal.local", {
+        method: "POST",
+        headers: fwdHeaders,
+        body: fd,
+      })
     );
     const data = (await res.json()) as { text?: string; message?: string };
     if (!res.ok || !data.text)
@@ -219,7 +245,7 @@ export async function POST(request: Request) {
     const { ok, data } = await callJsonRoute<{
       showNotes?: string;
       error?: string;
-    }>(showNotesRoute, { transcript });
+    }>(showNotesRoute, { transcript }, fwdHeaders);
     if (!ok) throw new Error(data.error || "Show-notes generation failed.");
     pkg.showNotes = data.showNotes ?? null;
   } catch (err) {
@@ -228,29 +254,38 @@ export async function POST(request: Request) {
   }
 
   const results = await Promise.allSettled([
-    callJsonRoute<{ titles?: string[]; error?: string }>(titleOptionsRoute, {
-      transcript,
-      showNotes: pkg.showNotes,
-    }),
+    callJsonRoute<{ titles?: string[]; error?: string }>(
+      titleOptionsRoute,
+      {
+        transcript,
+        showNotes: pkg.showNotes,
+      },
+      fwdHeaders
+    ),
     callJsonRoute<{
       chapters?: { startTime: number; title: string }[];
       error?: string;
-    }>(chaptersRoute, { transcript }),
+    }>(chaptersRoute, { transcript }, fwdHeaders),
     callJsonRoute<{
       highlights?: { quote: string; reason: string; timestamp: number }[];
       error?: string;
-    }>(highlightsRoute, { transcript }),
+    }>(highlightsRoute, { transcript }, fwdHeaders),
     callJsonRoute<{
       posts?: { platform: string; content: string }[];
       error?: string;
-    }>(socialPostsRoute, {
-      transcript,
-      showNotes: pkg.showNotes,
-      episodeTitle: episode.title,
-    }),
+    }>(
+      socialPostsRoute,
+      {
+        transcript,
+        showNotes: pkg.showNotes,
+        episodeTitle: episode.title,
+      },
+      fwdHeaders
+    ),
     callJsonRoute<{ description?: string; error?: string }>(
       episodeDescriptionRoute,
-      { content: pkg.showNotes || transcript }
+      { content: pkg.showNotes || transcript },
+      fwdHeaders
     ),
   ]);
 

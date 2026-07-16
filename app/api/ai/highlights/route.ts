@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getOpenAI } from "@/lib/openai/client";
+import { requireUser } from "@/lib/apiAuth";
 
 // #27 AI highlight generator.
 //
@@ -13,6 +14,9 @@ import { getOpenAI } from "@/lib/openai/client";
 // Structured output means the app can render each highlight as its own card
 // and (later) jump the audio player to that moment.
 export async function POST(request: Request) {
+  const guard = await requireUser(request, "ai-highlights");
+  if (!guard.ok) return guard.response;
+
   try {
     const body = await request.json();
 

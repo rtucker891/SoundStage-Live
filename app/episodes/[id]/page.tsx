@@ -9,6 +9,7 @@ import AppShell from "@/components/AppShell";
 import EditEpisodeForm from "@/components/episodes/EditEpisodeForm";
 
 import { getEpisodes } from "@/lib/api";
+import { authHeaders } from "@/lib/authHeaders";
 
 import type { Episode } from "@/types/episode";
 
@@ -42,6 +43,7 @@ const [generatedArtwork, setGeneratedArtwork] = useState("");
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...(await authHeaders()),
     },
    body: JSON.stringify({
   episodeId: episode.id,
@@ -230,6 +232,7 @@ const [generatedArtwork, setGeneratedArtwork] = useState("");
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...(await authHeaders()),
       },
       body: JSON.stringify({
         title: episode.title,
@@ -252,6 +255,7 @@ const [generatedArtwork, setGeneratedArtwork] = useState("");
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(await authHeaders()),
         },
         body: JSON.stringify({ base64: data.image }),
       }

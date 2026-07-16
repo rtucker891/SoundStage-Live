@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
 import AppShell from "@/components/AppShell";
+import { authHeaders } from "@/lib/authHeaders";
 import {
   getAssets,
   getEpisodes,
@@ -111,6 +112,7 @@ export default function EpisodePublishPage() {
     // the episode Published. This is what makes the RSS enclosure work.
     const res = await fetch(`/api/episodes/${episode.id}/publish`, {
       method: "POST",
+      headers: await authHeaders(),
     });
     const result = await res.json();
 

@@ -344,7 +344,10 @@ export default function LiveStudioPage() {
     if (chapters.length) {
       await fetch(`/api/episodes/${episode.id}/chapters`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeaders()),
+        },
         body: JSON.stringify({ chapters }),
       });
     }

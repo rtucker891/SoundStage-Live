@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getOpenAI } from "@/lib/openai/client";
+import { requireUser } from "@/lib/apiAuth";
 
 // #31 AI chapter markers.
 //
@@ -12,6 +13,9 @@ import { getOpenAI } from "@/lib/openai/client";
 // feed (via the <podcast:chapters> namespace / per-episode chapter data) so
 // podcast apps can show clickable chapter navigation.
 export async function POST(request: Request) {
+  const guard = await requireUser(request, "ai-chapters");
+  if (!guard.ok) return guard.response;
+
   try {
     const body = await request.json();
 

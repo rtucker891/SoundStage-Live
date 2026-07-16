@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getOpenAI } from "@/lib/openai/client";
+import { requireUser } from "@/lib/apiAuth";
 
 // #28 AI social post generator.
 //
@@ -8,6 +9,9 @@ import { getOpenAI } from "@/lib/openai/client";
 // platform (each platform has its own tone and length norms). Returns
 // STRUCTURED JSON so the UI can render one copy-ready card per platform.
 export async function POST(request: Request) {
+  const guard = await requireUser(request, "ai-social-posts");
+  if (!guard.ok) return guard.response;
+
   try {
     const body = await request.json();
 

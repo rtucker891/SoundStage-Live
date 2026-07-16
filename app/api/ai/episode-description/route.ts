@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 
 import { getOpenAI } from "@/lib/openai/client";
+import { requireUser } from "@/lib/apiAuth";
 
 export async function POST(request: Request) {
+  const guard = await requireUser(request, "ai-episode-description");
+  if (!guard.ok) return guard.response;
+
   const body = await request.json();
 
   const content = body.content;

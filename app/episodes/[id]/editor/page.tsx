@@ -104,6 +104,7 @@ async function transcribeBlob(blob: Blob, fileName: string): Promise<string> {
 
   const response = await fetch("/api/ai/transcribe", {
     method: "POST",
+    headers: await authHeaders(),
     body: formData,
   });
 
@@ -373,6 +374,7 @@ export default function EpisodeEditorPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(await authHeaders()),
         },
         body: JSON.stringify({
           transcript: transcriptText,
@@ -498,6 +500,7 @@ export default function EpisodeEditorPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(await authHeaders()),
         },
         body: JSON.stringify({
           content,
@@ -533,6 +536,7 @@ export default function EpisodeEditorPage() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...(await authHeaders()),
       },
       body: JSON.stringify({
         transcript: transcriptText,
@@ -578,7 +582,10 @@ export default function EpisodeEditorPage() {
     try {
       const response = await fetch("/api/ai/highlights", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeaders()),
+        },
         body: JSON.stringify({ transcript: timedTranscript }),
       });
 
@@ -615,7 +622,10 @@ export default function EpisodeEditorPage() {
     try {
       const response = await fetch("/api/ai/social-posts", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeaders()),
+        },
         body: JSON.stringify({
           transcript: transcriptText,
           showNotes: showNote?.summary || "",
@@ -660,7 +670,10 @@ export default function EpisodeEditorPage() {
     try {
       const response = await fetch("/api/ai/chapters", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeaders()),
+        },
         body: JSON.stringify({ transcript: timedTranscript }),
       });
 
@@ -679,7 +692,10 @@ export default function EpisodeEditorPage() {
         // Persist the chapters on the episode so the public feed can use them.
         const saveResponse = await fetch(`/api/episodes/${episode.id}/chapters`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(await authHeaders()),
+          },
           body: JSON.stringify({ chapters: generated }),
         });
 
@@ -725,6 +741,7 @@ export default function EpisodeEditorPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(await authHeaders()),
         },
         body: JSON.stringify({ prompt }),
       });
@@ -749,6 +766,7 @@ export default function EpisodeEditorPage() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            ...(await authHeaders()),
           },
           body: JSON.stringify({ base64: data.imageUrl }),
         }
@@ -808,6 +826,7 @@ export default function EpisodeEditorPage() {
         `/api/episodes/${episode.id}/cover-art`,
         {
           method: "POST",
+          headers: await authHeaders(),
           body: formData,
         }
       );
