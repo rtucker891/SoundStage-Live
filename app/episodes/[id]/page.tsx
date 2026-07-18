@@ -228,7 +228,7 @@ const [generatedArtwork, setGeneratedArtwork] = useState("");
 
   try {
     // Step 1: generate the image (returns a base64 data URL).
-    const response = await fetch("/api/ai/artwork", {
+    const response = await fetch("/api/ai/cover-art", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -242,8 +242,9 @@ const [generatedArtwork, setGeneratedArtwork] = useState("");
     });
 
     const data = await response.json();
+    const generated = data.imageUrl || data.image;
 
-    if (!response.ok || !data.image) {
+    if (!response.ok || !generated) {
       setGeneratedArtwork("");
       return;
     }
@@ -257,7 +258,7 @@ const [generatedArtwork, setGeneratedArtwork] = useState("");
           "Content-Type": "application/json",
           ...(await authHeaders()),
         },
-        body: JSON.stringify({ base64: data.image }),
+        body: JSON.stringify({ base64: generated }),
       }
     );
 
@@ -265,7 +266,7 @@ const [generatedArtwork, setGeneratedArtwork] = useState("");
 
     // Prefer the permanent saved URL; fall back to the preview if saving
     // failed for any reason.
-    setGeneratedArtwork(saved.url || data.image);
+    setGeneratedArtwork(saved.url || generated);
   } finally {
     setGeneratingArtwork(false);
   }
