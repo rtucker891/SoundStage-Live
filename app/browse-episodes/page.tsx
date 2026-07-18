@@ -40,7 +40,8 @@ const episodes = data || [];
             episodes.map((episode) => {
               const artwork =
                 episode.cover_art_url ||
-                (episode.shows as any)?.cover_art_url ||
+                (episode.shows as { cover_art_url?: string } | null)
+                  ?.cover_art_url ||
                 "";
 
               return (
@@ -58,7 +59,8 @@ const episodes = data || [];
                   )}
 
                   <p className="mt-4 text-sm text-slate-500">
-                    {(episode.shows as any)?.title || "Podcast Episode"}
+                    {(episode.shows as { title?: string } | null)?.title ||
+                      "Podcast Episode"}
                   </p>
 
                   <h2 className="mt-1 text-xl font-bold">{episode.title}</h2>

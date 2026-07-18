@@ -10,13 +10,13 @@ export default function ContactPage() {
           </p>
 
           <h1 className="mt-4 text-5xl font-bold">
-            Let's talk about your podcast.
+            Let&apos;s talk about your podcast.
           </h1>
 
           <p className="mt-6 max-w-3xl text-xl text-white/80">
-            Whether you're a solo creator, podcast network,
+            Whether you&apos;re a solo creator, podcast network,
             media company, or educational institution,
-            we'd love to hear from you.
+            we&apos;d love to hear from you.
           </p>
         </section>
 

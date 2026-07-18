@@ -59,11 +59,12 @@ export async function generateMetadata({
     return { title: "Episode Not Found" };
   }
 
-  const showTitle = (episode.shows as any)?.title || "SoundStage Live";
+  const showTitle =
+    (episode.shows as { title?: string } | null)?.title || "SoundStage Live";
   const image =
     episode.published_artwork_url ||
     episode.cover_art_url ||
-    (episode.shows as any)?.cover_art_url ||
+    (episode.shows as { cover_art_url?: string } | null)?.cover_art_url ||
     undefined;
   const description = episode.guest
     ? `${episode.title} — featuring ${episode.guest}, on ${showTitle}.`
@@ -129,7 +130,7 @@ export default async function PublicEpisodePage({ params }: Props) {
     episode.published_artwork_url ||
     episode.cover_art_url ||
     artworkAsset?.url ||
-    (episode.shows as any)?.cover_art_url ||
+    (episode.shows as { cover_art_url?: string } | null)?.cover_art_url ||
     "";
 
   // Prefer the PERMANENT published MP3 (public bucket, never expires). Only
@@ -137,7 +138,8 @@ export default async function PublicEpisodePage({ params }: Props) {
   // those signed URLs expire after an hour.
   const audioSrc = episode.published_audio_url || recording?.url || "";
   const audioType = episode.published_audio_mime || undefined;
-  const showTitle = (episode.shows as any)?.title || "Untitled Show";
+  const showTitle =
+    (episode.shows as { title?: string } | null)?.title || "Untitled Show";
   const publishedDate = formatDate(episode.published_at || episode.created_at);
 
   // Most recent show notes row (the AI generator may have run more than once).

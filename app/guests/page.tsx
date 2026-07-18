@@ -92,6 +92,11 @@ export default function GuestsPage() {
   }
 
   useEffect(() => {
+    // Hydrate on mount. `load` sets a loading flag before its async fetch; it's
+    // the same loader the mutation handlers reuse to re-fetch, so we keep it
+    // rather than deriving the flag during render. The synchronous set is
+    // intentional.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
   }, []);
 

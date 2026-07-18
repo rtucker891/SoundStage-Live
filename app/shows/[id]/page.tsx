@@ -29,7 +29,10 @@ const [coverArtUrl, setCoverArtUrl] = useState("");
         );
 
         setShow(selectedShow || null);
-        setCoverArtUrl((selectedShow as any)?.cover_art_url || "");
+        setCoverArtUrl(
+          (selectedShow as (typeof selectedShow & { cover_art_url?: string }))
+            ?.cover_art_url || ""
+        );
 
         if (selectedShow) {
           setEpisodes(

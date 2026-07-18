@@ -252,7 +252,8 @@ export default async function Home() {
           className="rounded-2xl bg-white p-6 shadow"
         >
           <p className="text-sm font-bold uppercase tracking-wide text-slate-400">
-            {(episode.shows as any)?.title || "SoundStage Live"}
+            {(episode.shows as { title?: string } | null)?.title ||
+              "SoundStage Live"}
           </p>
 
           <h3 className="mt-2 text-xl font-bold">

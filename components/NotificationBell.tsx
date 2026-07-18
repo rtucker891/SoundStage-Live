@@ -43,14 +43,6 @@ export default function NotificationBell() {
   const [loading, setLoading] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  const refreshCount = useCallback(async () => {
-    try {
-      setUnread(await getUnreadNotificationCount());
-    } catch {
-      // ignore — never break the header over notifications
-    }
-  }, []);
-
   const loadList = useCallback(async () => {
     setLoading(true);
     try {
@@ -64,17 +56,34 @@ export default function NotificationBell() {
     }
   }, []);
 
-  // Initial count + poll every 60s.
+  // Initial count + poll every 60s. The count is fetched asynchronously (state
+  // is only set after the await resolves, never synchronously during the
+  // effect), and the interval is the external system this effect synchronizes.
   useEffect(() => {
-    refreshCount();
-    const id = setInterval(refreshCount, 60_000);
-    return () => clearInterval(id);
-  }, [refreshCount]);
+    let active = true;
+    const tick = async () => {
+      try {
+        const count = await getUnreadNotificationCount();
+        if (active) setUnread(count);
+      } catch {
+        // ignore — never break the header over notifications
+      }
+    };
+    tick();
+    const id = setInterval(tick, 60_000);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+  }, []);
 
-  // Load the full list whenever the dropdown opens.
-  useEffect(() => {
-    if (open) loadList();
-  }, [open, loadList]);
+  // Open/close the dropdown. Loading the list is a user-driven side effect, so
+  // it belongs in the click handler rather than an effect that watches `open`.
+  function toggleOpen() {
+    const next = !open;
+    setOpen(next);
+    if (next) loadList();
+  }
 
   // Close when clicking outside.
   useEffect(() => {
@@ -123,7 +132,7 @@ export default function NotificationBell() {
     <div ref={wrapRef} className="relative">
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggleOpen}
         aria-label="Notifications"
         className="relative rounded-lg border border-slate-200 px-4 py-2"
       >
@@ -157,7 +166,7 @@ export default function NotificationBell() {
               </p>
             ) : items.length === 0 ? (
               <p className="px-4 py-8 text-center text-sm text-slate-400">
-                You're all caught up. No notifications yet.
+                You&apos;re all caught up. No notifications yet.
               </p>
             ) : (
               items.map((n) => (

@@ -29,24 +29,35 @@ const RANGES = [
 
 export default function AnalyticsContent() {
   const [days, setDays] = useState(30);
-  const [loading, setLoading] = useState(true);
+  const [loadedDays, setLoadedDays] = useState<number | null>(null);
   const [totals, setTotals] = useState<AnalyticsTotal[]>([]);
   const [daily, setDaily] = useState<AnalyticsDailyRow[]>([]);
   const [topEpisodes, setTopEpisodes] = useState<AnalyticsTopEpisode[]>([]);
 
+  // Derived during render: we're loading whenever the data on hand doesn't
+  // correspond to the currently-selected range. This avoids a synchronous
+  // setState in the effect while preserving the "spinner on range switch" UX.
+  const loading = loadedDays !== days;
+
   useEffect(() => {
-    setLoading(true);
+    let active = true;
     Promise.all([
       getAnalyticsTotals(days),
       getAnalyticsDaily(days),
       getAnalyticsTopEpisodes(days, 5),
     ])
       .then(([totalsData, dailyData, topData]) => {
+        if (!active) return;
         setTotals(totalsData);
         setDaily(dailyData);
         setTopEpisodes(topData);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (active) setLoadedDays(days);
+      });
+    return () => {
+      active = false;
+    };
   }, [days]);
 
   // Helper: pull the recent (windowed) total for one event type.

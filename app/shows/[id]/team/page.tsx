@@ -56,6 +56,11 @@ export default function TeamPage() {
   }, [showId]);
 
   useEffect(() => {
+    // Hydrate on mount / when the show id changes. `load` sets a loading flag
+    // before its async fetch; it's the same loader the mutation handlers call to
+    // re-fetch (and to re-show the spinner), so deriving the flag during render
+    // would drop that spinner. The synchronous set here is intentional.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (showId) load();
   }, [showId, load]);
 

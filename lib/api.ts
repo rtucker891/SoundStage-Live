@@ -287,7 +287,16 @@ export async function getEpisodes(): Promise<Episode[]> {
     throw new Error(error.message);
   }
 
-  return data.map((episode: any) => ({
+  type EpisodeRow = {
+    id: string;
+    title: string;
+    guest: string | null;
+    status: EpisodeStatus | null;
+    cover_art_url: string | null;
+    shows: { title?: string } | null;
+  };
+
+  return (data as EpisodeRow[]).map((episode) => ({
     id: episode.id,
     title: episode.title,
     guest: episode.guest || "Pending",

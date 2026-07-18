@@ -107,6 +107,9 @@ export default function EpisodeAssetsPage() {
     try {
       // Convert to a standard podcast MP3, upload the new file, then point the
       // existing asset/recording at it and delete the old file.
+      // Runs inside an async onChange handler (not during render), where a
+      // timestamp for the upload filename is exactly the right thing to do.
+      // eslint-disable-next-line react-hooks/purity
       const stem = `replace-${Date.now()}`;
       const { file: mp3File, size: mp3Size, durationSeconds } =
         await convertToMp3(file, stem, (status) =>

@@ -92,6 +92,10 @@ export default function AuditPage() {
   }, [showId]);
 
   useEffect(() => {
+    // Hydrate on mount / when the show id changes. `load` sets a loading flag
+    // before its async fetch; keeping the shared loader (rather than a
+    // render-derived flag) preserves the spinner shown while loading.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (showId) load();
   }, [showId, load]);
 
