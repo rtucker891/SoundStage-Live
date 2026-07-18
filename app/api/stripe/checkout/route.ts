@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import Stripe from "stripe";
 
 import { admin, callerId } from "@/lib/teamServer";
 import { getStripe, appUrl } from "@/lib/stripe/server";
@@ -66,6 +67,26 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     let customerId = existing?.stripe_customer_id as string | undefined;
+
+    // Verify a saved customer still exists in Stripe before reusing it. A stale
+    // id (e.g. from a rotated key or a different account) would otherwise crash
+    // checkout with "No such customer". If it's missing or deleted, discard it
+    // and fall through to creating a fresh one; rethrow any unrelated error.
+    if (customerId) {
+      try {
+        const customer = await stripe.customers.retrieve(customerId);
+        if ("deleted" in customer && customer.deleted) customerId = undefined;
+      } catch (err) {
+        if (
+          err instanceof Stripe.errors.StripeInvalidRequestError &&
+          (err.code === "resource_missing" || err.statusCode === 404)
+        ) {
+          customerId = undefined;
+        } else {
+          throw err;
+        }
+      }
+    }
 
     if (!customerId) {
       const { data: userData } = await db.auth.admin.getUserById(uid);
