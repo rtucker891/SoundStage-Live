@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -15,15 +16,16 @@ export default function Sidebar() {
 
   return (
     <aside className="flex w-72 flex-col bg-slate-950 p-6 text-white">
-      <div className="rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 p-5 shadow-lg">
-        <h1 className="text-2xl font-bold">
-          SoundStage Live
-        </h1>
-
-        <p className="mt-2 text-sm text-white/80">
-          Create Live. From Anywhere.
-        </p>
-      </div>
+      <Link href="/" className="block">
+        <Image
+          src="/logo-dark.png"
+          alt="SoundStage Live"
+          width={1756}
+          height={664}
+          priority
+          className="h-auto w-full"
+        />
+      </Link>
 
       <nav className="mt-8 flex flex-col gap-3 text-sm">
         <Link href="/" className={linkClass("/")}>
