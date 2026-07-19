@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { isProtectedPath } from "@/lib/authPaths";
+
 /**
  * Route protection (Next.js 16 Proxy — the renamed `middleware`).
  *
@@ -10,27 +12,6 @@ import { NextResponse, type NextRequest } from "next/server";
  * user. Public pages (landing, login, pricing, browse, listen, etc.) are left
  * untouched.
  */
-
-// Authenticated-only areas. A path is protected if it equals one of these or
-// starts with one followed by "/". Everything else is public by default.
-const PROTECTED_PREFIXES = [
-  "/dashboard",
-  "/studio",
-  "/analytics",
-  "/editor",
-  "/publish",
-  "/settings",
-  "/home",
-  "/shows",
-  "/episodes",
-  "/guests",
-];
-
-function isProtectedPath(pathname: string): boolean {
-  return PROTECTED_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
-  );
-}
 
 export async function proxy(request: NextRequest) {
   // Start from a pass-through response so Supabase can attach refreshed

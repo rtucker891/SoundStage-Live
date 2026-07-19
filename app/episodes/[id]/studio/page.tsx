@@ -175,7 +175,7 @@ export default function EpisodeStudioPage() {
 
     setRecording(true);
     setMessage("Recording started...");
-  } catch (error) {
+  } catch {
     setMessage("Unable to start recording. Check microphone permission.");
   }
 

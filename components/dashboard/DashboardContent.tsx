@@ -9,8 +9,6 @@ import {
   getAssets,
   getEpisodes,
   getShows,
-  getTranscripts,
-  getShowNotes,
   getAnalyticsTotals,
   type AnalyticsTotal,
 } from "@/lib/api";
@@ -24,32 +22,19 @@ const [shows, setShows] = useState<Show[]>([]);
 const [episodes, setEpisodes] = useState<Episode[]>([]);
 const [loading, setLoading] = useState(true);
 const [assetCount, setAssetCount] = useState(0);
-const [transcriptCount, setTranscriptCount] = useState(0);
-const [showNoteCount, setShowNoteCount] = useState(0);
 const [analyticsTotals, setAnalyticsTotals] = useState<AnalyticsTotal[]>([]);
 useEffect(() => {
   Promise.all([
     getShows(),
     getEpisodes(),
     getAssets(),
-    getTranscripts(),
-    getShowNotes(),
     getAnalyticsTotals(30),
   ])
     .then(
-      ([
-        showsData,
-        episodesData,
-        assetsData,
-        transcriptsData,
-        showNotesData,
-        totalsData,
-      ]) => {
+      ([showsData, episodesData, assetsData, totalsData]) => {
         setShows(showsData);
         setEpisodes(episodesData);
         setAssetCount(assetsData.length);
-        setTranscriptCount(transcriptsData.length);
-        setShowNoteCount(showNotesData.length);
         setAnalyticsTotals(totalsData);
       }
     )

@@ -238,7 +238,6 @@ export default function LiveStudioPage() {
     if (!pkg) return;
     const url = useTrimmed && trimmedUrl ? trimmedUrl : originalUrl;
     void drawAudiogram(url, pkg.audiogram.caption);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pkg, useTrimmed, trimmedUrl, originalUrl]);
 
   // Auto-trim dead air — CLIENT-SIDE and NON-DESTRUCTIVE. Produces a new WAV in
