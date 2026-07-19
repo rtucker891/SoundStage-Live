@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 import EpisodeNavigation from "@/components/episodes/EpisodeNavigation";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -289,10 +291,13 @@ const [generatedArtwork, setGeneratedArtwork] = useState("");
       Generated Artwork
     </p>
 
-    <img
+    <Image
       src={generatedArtwork}
       alt="Generated podcast artwork"
-      className="w-full max-w-xs rounded-2xl shadow"
+      width={320}
+      height={320}
+      unoptimized
+      className="h-auto w-full max-w-xs rounded-2xl shadow"
     />
   </div>
 )}

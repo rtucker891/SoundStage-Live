@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -311,10 +312,12 @@ export default function PodcastSettingsPage() {
             <div className="mt-4 flex items-center gap-5">
               <div className="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
                 {coverArtUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <Image
                     src={coverArtUrl}
                     alt="Show cover art"
+                    width={112}
+                    height={112}
+                    unoptimized
                     className="h-full w-full object-cover"
                   />
                 ) : (

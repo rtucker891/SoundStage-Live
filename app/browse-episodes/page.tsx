@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import PublicNav from "@/components/public/PublicNav";
@@ -47,9 +48,12 @@ const episodes = data || [];
               return (
                 <div key={episode.id} className="rounded-2xl bg-white p-6 shadow">
                   {artwork ? (
-                    <img
+                    <Image
                       src={artwork}
                       alt={episode.title}
+                      width={400}
+                      height={192}
+                      unoptimized
                       className="h-48 w-full rounded-xl object-cover"
                     />
                   ) : (

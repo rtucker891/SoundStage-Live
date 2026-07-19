@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
@@ -112,10 +113,12 @@ export default async function GuestProfilePage({ params }: Props) {
 
         <div className="rounded-3xl bg-white p-8 shadow-sm">
           <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src={guest.photo_url || "/default-cover.png"}
               alt={guest.name}
+              width={112}
+              height={112}
+              unoptimized
               className="h-28 w-28 flex-shrink-0 rounded-full object-cover"
             />
             <div className="text-center sm:text-left">

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
@@ -129,9 +130,12 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                       className="rounded-2xl bg-white p-6 shadow"
                     >
                       {show.cover_art_url ? (
-                        <img
+                        <Image
                           src={show.cover_art_url}
                           alt={show.title}
+                          width={400}
+                          height={192}
+                          unoptimized
                           className="h-48 w-full rounded-xl object-cover"
                         />
                       ) : (
@@ -184,9 +188,12 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                         className="rounded-2xl bg-white p-6 shadow"
                       >
                         {artwork ? (
-                          <img
+                          <Image
                             src={artwork}
                             alt={episode.title}
+                            width={400}
+                            height={192}
+                            unoptimized
                             className="h-48 w-full rounded-xl object-cover"
                           />
                         ) : (
@@ -247,9 +254,12 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                         className="flex items-start gap-4 rounded-2xl bg-white p-5 shadow transition hover:shadow-md"
                       >
                         {artwork ? (
-                          <img
+                          <Image
                             src={artwork}
                             alt={hit.title}
+                            width={64}
+                            height={64}
+                            unoptimized
                             className="h-16 w-16 flex-shrink-0 rounded-lg object-cover"
                           />
                         ) : (

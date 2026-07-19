@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
@@ -216,10 +217,12 @@ export default async function PublicEpisodePage({ params }: Props) {
                   href={`/guest/${g.id}`}
                   className="flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/25"
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  <Image
                     src={g.photo_url || "/default-cover.png"}
                     alt=""
+                    width={24}
+                    height={24}
+                    unoptimized
                     className="h-6 w-6 rounded-full object-cover"
                   />
                   {g.name}
@@ -264,10 +267,13 @@ export default async function PublicEpisodePage({ params }: Props) {
 
           {coverArtUrl && (
             <div className="mt-8">
-              <img
+              <Image
                 src={coverArtUrl}
                 alt={episode.title}
-                className="mx-auto w-full max-w-md rounded-2xl border border-white/20 shadow-2xl"
+                width={448}
+                height={448}
+                unoptimized
+                className="mx-auto h-auto w-full max-w-md rounded-2xl border border-white/20 shadow-2xl"
               />
             </div>
           )}

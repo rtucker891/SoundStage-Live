@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 import EpisodeNavigation from "@/components/episodes/EpisodeNavigation";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
@@ -252,10 +254,13 @@ export default function EpisodeAssetsPage() {
 
                     {asset.type === "artwork" && (
                       <>
-                        <img
+                        <Image
                           src={asset.url}
                           alt={asset.name}
-                          className="mt-4 max-h-64 rounded-lg border border-slate-200"
+                          width={256}
+                          height={256}
+                          unoptimized
+                          className="mt-4 h-auto max-h-64 w-auto rounded-lg border border-slate-200"
                         />
 
                         <a

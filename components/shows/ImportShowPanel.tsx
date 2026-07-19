@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { previewImport, importFromRss, type ImportPreview, type ImportResult } from "@/lib/api";
 import type { Show } from "@/types/show";
@@ -138,10 +139,12 @@ export default function ImportShowPanel({
         <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
           <div className="flex items-start gap-4">
             {preview.imageUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <Image
                 src={preview.imageUrl}
                 alt=""
+                width={64}
+                height={64}
+                unoptimized
                 className="h-16 w-16 flex-shrink-0 rounded-lg object-cover"
               />
             )}

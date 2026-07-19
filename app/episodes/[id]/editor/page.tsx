@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 import EpisodeNavigation from "@/components/episodes/EpisodeNavigation";
 import EpisodeMetaManager from "@/components/episodes/EpisodeMetaManager";
 import { useEffect, useState } from "react";
@@ -1615,10 +1617,13 @@ export default function EpisodeEditorPage() {
 
             {coverArtUrl && (
               <>
-                <img
+                <Image
                   src={coverArtUrl}
                   alt="Generated Cover Art"
-                  className="mt-6 rounded-xl border border-pink-200 shadow"
+                  width={512}
+                  height={512}
+                  unoptimized
+                  className="mt-6 h-auto max-w-full rounded-xl border border-pink-200 shadow"
                 />
 
                 <a

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 type Props = {
@@ -76,10 +77,13 @@ export default async function PodcastPage({ params }: Props) {
         </Link>
 
         <section className="grid gap-8 rounded-3xl bg-white p-8 shadow-xl lg:grid-cols-[320px_1fr]">
-          <img
+          <Image
             src={podcast.image}
             alt={podcast.title}
-            className="w-full rounded-3xl object-cover shadow"
+            width={320}
+            height={320}
+            unoptimized
+            className="h-auto w-full rounded-3xl object-cover shadow"
           />
 
           <div>

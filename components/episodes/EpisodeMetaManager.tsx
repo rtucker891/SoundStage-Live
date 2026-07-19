@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
@@ -203,10 +204,12 @@ export default function EpisodeMetaManager({
                       : "border border-slate-300 text-slate-600 hover:border-purple-400"
                   }`}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  <Image
                     src={g.photoUrl || "/default-cover.png"}
                     alt=""
+                    width={20}
+                    height={20}
+                    unoptimized
                     className="h-5 w-5 rounded-full object-cover"
                   />
                   {on ? "✓ " : ""}

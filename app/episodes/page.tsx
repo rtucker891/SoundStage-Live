@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -268,9 +269,12 @@ const inProductionCount = episodes.length - publishedCount;
                     className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-5 shadow transition-all hover:-translate-y-1 hover:shadow-xl"
                   >
                     {coverArt ? (
-                      <img
+                      <Image
                         src={coverArt.url}
                         alt={episode.title}
+                        width={400}
+                        height={160}
+                        unoptimized
                         className="mb-4 h-40 w-full rounded-xl object-cover"
                       />
                     ) : (

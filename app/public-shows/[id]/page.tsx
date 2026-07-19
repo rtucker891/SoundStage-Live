@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
@@ -135,9 +136,12 @@ export default async function PublicShowPage({ params }: Props) {
         <div className="rounded-3xl bg-gradient-to-r from-indigo-700 via-purple-700 to-pink-600 p-10 text-white shadow-xl">
           <div className="grid gap-8 md:grid-cols-[220px_1fr] md:items-center">
             {artwork ? (
-              <img
+              <Image
                 src={artwork}
                 alt={show.title}
+                width={224}
+                height={224}
+                unoptimized
                 className="h-56 w-56 rounded-2xl border border-white/20 object-cover shadow-2xl"
               />
             ) : (
@@ -215,9 +219,12 @@ export default async function PublicShowPage({ params }: Props) {
                     className="flex items-center gap-4 rounded-xl border border-slate-200 p-4 transition hover:border-purple-300 hover:shadow"
                   >
                     {epArt ? (
-                      <img
+                      <Image
                         src={epArt}
                         alt={episode.title}
+                        width={64}
+                        height={64}
+                        unoptimized
                         className="h-16 w-16 flex-shrink-0 rounded-lg object-cover"
                       />
                     ) : (

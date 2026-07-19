@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import PublicNav from "@/components/public/PublicNav";
@@ -128,9 +129,12 @@ export default async function BrowseShowsPage({ searchParams }: Props) {
                 className="rounded-3xl bg-white p-5 shadow transition hover:-translate-y-1 hover:shadow-xl"
               >
                 {show.cover_art_url ? (
-                  <img
+                  <Image
                     src={show.cover_art_url}
                     alt={show.title}
+                    width={400}
+                    height={400}
+                    unoptimized
                     className="aspect-square w-full rounded-2xl object-cover"
                   />
                 ) : (

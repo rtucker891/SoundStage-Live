@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
@@ -81,9 +82,12 @@ async function uploadShowCoverArt(
   <h2 className="text-lg font-bold">Show Cover Art</h2>
 
   {coverArtUrl ? (
-    <img
+    <Image
       src={coverArtUrl}
       alt={show.title}
+      width={192}
+      height={192}
+      unoptimized
       className="mt-4 h-48 w-48 rounded-xl object-cover shadow"
     />
   ) : (

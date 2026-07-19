@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -98,10 +99,11 @@ export default async function Home() {
             </div>
 
             <div className="relative h-[380px] overflow-hidden">
-              <img
+              <Image
                 src="/images/hero-podcaster.png"
                 alt="Podcast Host"
-                className="h-full w-full object-cover"
+                fill
+                className="object-cover"
               />
 
               <div className="absolute inset-0 bg-gradient-to-l from-transparent via-transparent to-slate-950/30" />
@@ -165,9 +167,11 @@ export default async function Home() {
       href="/podcasts/technology-today"
       className="rounded-2xl bg-white p-4 shadow transition hover:-translate-y-1 hover:shadow-xl"
     >
-      <img
+      <Image
         src="/images/technology-show.png"
         alt="Technology Today"
+        width={1254}
+        height={1254}
         className="aspect-square w-full rounded-xl object-cover"
       />
 
@@ -184,9 +188,11 @@ export default async function Home() {
       href="/podcasts/business-growth"
       className="rounded-2xl bg-white p-4 shadow transition hover:-translate-y-1 hover:shadow-xl"
     >
-      <img
+      <Image
         src="/images/business-show.png"
         alt="Business Growth"
+        width={1254}
+        height={1254}
         className="aspect-square w-full rounded-xl object-cover"
       />
 
@@ -203,9 +209,11 @@ export default async function Home() {
       href="/podcasts/health-wellness"
       className="rounded-2xl bg-white p-4 shadow transition hover:-translate-y-1 hover:shadow-xl"
     >
-      <img
+      <Image
         src="/images/health-show.png"
         alt="Health & Wellness"
+        width={1254}
+        height={1254}
         className="aspect-square w-full rounded-xl object-cover"
       />
 

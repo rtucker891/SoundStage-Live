@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 
 import AppShell from "@/components/AppShell";
@@ -404,10 +405,12 @@ export default function GuestsPage() {
                   key={g.id}
                   className="flex gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  <Image
                     src={g.photoUrl || "/default-cover.png"}
                     alt={g.name}
+                    width={64}
+                    height={64}
+                    unoptimized
                     className="h-16 w-16 flex-shrink-0 rounded-full object-cover"
                   />
                   <div className="min-w-0 flex-1">
