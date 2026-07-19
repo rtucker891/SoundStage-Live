@@ -1,8 +1,14 @@
+import Link from "next/link";
+
 import AppShell from "@/components/AppShell";
 import ChangePasswordForm from "@/components/settings/ChangePasswordForm";
 import ManageBilling from "@/components/settings/ManageBilling";
+import PlanBadge, { PLAN_LABELS } from "@/components/PlanBadge";
+import { getCurrentUserPlan } from "@/lib/supabaseServer";
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const plan = await getCurrentUserPlan();
+
   return (
     <AppShell>
       <div>
@@ -14,6 +20,24 @@ export default function SettingsPage() {
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
+        <div className="rounded-xl bg-white p-6 shadow lg:col-span-2">
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-bold">Your plan</h2>
+            <PlanBadge plan={plan} />
+          </div>
+          <p className="mt-2 text-slate-600">
+            {plan === "free"
+              ? "You're on the Free plan. Upgrade to unlock Creator and Studio features."
+              : `You're on the ${PLAN_LABELS[plan]} plan.`}
+          </p>
+          <Link
+            href="/pricing"
+            className="mt-6 inline-block rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-3 font-semibold text-white"
+          >
+            {plan === "free" ? "Upgrade plan" : "Change plan"}
+          </Link>
+        </div>
+
         <div className="rounded-xl bg-white p-6 shadow">
           <h2 className="text-2xl font-bold">Workspace</h2>
 

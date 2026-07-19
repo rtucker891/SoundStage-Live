@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
+import { getPlan, type Plan } from "@/lib/plan";
 
 /**
  * Supabase client for Server Components, Server Actions, and Route Handlers.
@@ -51,4 +52,19 @@ export async function requireUser(): Promise<User> {
     redirect("/login");
   }
   return user;
+}
+
+/**
+ * Resolve the signed-in user's subscription tier for display, defaulting to
+ * 'free'. Uses the cookie-scoped server client, which can read the caller's own
+ * subscriptions row (RLS), and reuses getPlan() so the badge always matches the
+ * authoritative feature-gating logic. A missing row (or no user) → 'free'.
+ */
+export async function getCurrentUserPlan(): Promise<Plan> {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return "free";
+  return getPlan(supabase, user.id);
 }

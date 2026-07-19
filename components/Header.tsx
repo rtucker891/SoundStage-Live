@@ -2,13 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { authHeaders } from "@/lib/authHeaders";
 import { useRouter } from "next/navigation";
 import NotificationBell from "@/components/NotificationBell";
+import PlanBadge from "@/components/PlanBadge";
+import type { Plan } from "@/lib/plan";
 
 export default function Header() {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
+  const [plan, setPlan] = useState<Plan>("free");
 
   useEffect(() => {
     async function loadUser() {
@@ -17,6 +21,18 @@ export default function Header() {
       } = await supabase.auth.getUser();
 
       setEmail(user?.email || "Unknown User");
+
+      // Resolve the tier via the authoritative /api/plan endpoint; any failure
+      // leaves the default 'free' so the badge never breaks the header.
+      try {
+        const res = await fetch("/api/plan", { headers: await authHeaders() });
+        if (res.ok) {
+          const data = (await res.json()) as { plan?: Plan };
+          if (data.plan) setPlan(data.plan);
+        }
+      } catch {
+        // keep default 'free'
+      }
     }
 
     loadUser();
@@ -34,9 +50,10 @@ export default function Header() {
           Welcome back
         </h2>
 
-        <p className="text-sm text-slate-500">
-          {email}
-        </p>
+        <div className="mt-1 flex items-center gap-2">
+          <p className="text-sm text-slate-500">{email}</p>
+          <PlanBadge plan={plan} />
+        </div>
       </div>
 
       <div className="flex items-center gap-4">
