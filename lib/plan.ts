@@ -27,6 +27,28 @@ export function isStudioPlan(plan: Plan): boolean {
 /** Paid plans backed by a real Stripe subscription. */
 const PAID_PLANS = new Set<Plan>(["creator", "studio", "studio_plus"]);
 
+/**
+ * Per-tier limit on how many (non-deleted, owned) shows a user may have.
+ * `null` means unlimited. Single source of truth for show-count gating.
+ */
+export const SHOW_LIMITS: Record<Plan, number | null> = {
+  free: 1,
+  creator: 5,
+  studio: null,
+  studio_plus: null,
+};
+
+/** The show limit for a plan (`null` = unlimited). */
+export function showLimitFor(plan: Plan): number | null {
+  return SHOW_LIMITS[plan];
+}
+
+/** True if a user on `plan` with `currentShowCount` shows may create another. */
+export function canCreateShow(plan: Plan, currentShowCount: number): boolean {
+  const lim = SHOW_LIMITS[plan];
+  return lim === null || currentShowCount < lim;
+}
+
 /** Subscription statuses that grant the row's paid plan. */
 const ACTIVE_STATUSES = new Set(["active", "trialing"]);
 

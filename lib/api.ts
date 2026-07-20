@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
+import { authHeaders } from "@/lib/authHeaders";
 import type { ShowNote } from "@/types/show-note";
 import type { Asset } from "@/types/asset";
 import type { Show } from "@/types/show";
@@ -130,35 +131,33 @@ export async function createShow(data: {
   title: string;
   description: string;
 }) {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Creation goes through the server route so the per-tier show limit is
+  // enforced authoritatively (the client cannot be trusted to gate itself).
+  const res = await fetch("/api/shows", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+    body: JSON.stringify(data),
+  });
 
-  if (!user) {
-    throw new Error("Not signed in");
-  }
+  const body = (await res.json().catch(() => ({}))) as {
+    id?: string;
+    title?: string;
+    description?: string;
+    status?: Show["status"];
+    episodes?: number;
+    error?: string;
+  };
 
-  const { data: createdShow, error } = await supabase
-    .from("shows")
-    .insert({
-      user_id: user.id,
-      title: data.title,
-      description: data.description,
-      status: "Draft",
-    })
-    .select()
-    .single();
-
-  if (error) {
-    throw new Error(error.message);
+  if (!res.ok) {
+    throw new Error(body.error || "Could not create show.");
   }
 
   return {
-    id: createdShow.id,
-    title: createdShow.title,
-    description: createdShow.description || "",
-    status: createdShow.status || "Draft",
-    episodes: 0,
+    id: body.id!,
+    title: body.title!,
+    description: body.description || "",
+    status: body.status || "Draft",
+    episodes: body.episodes ?? 0,
   };
 }
 

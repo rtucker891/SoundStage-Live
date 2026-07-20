@@ -1,7 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { getPlan, isStudioPlan } from "../plan";
+import {
+  getPlan,
+  isStudioPlan,
+  showLimitFor,
+  canCreateShow,
+} from "../plan";
 
 /**
  * A minimal fake of the Supabase query builder chain getPlan uses:
@@ -37,6 +42,32 @@ describe("isStudioPlan", () => {
     expect(isStudioPlan("studio_plus")).toBe(true);
     expect(isStudioPlan("creator")).toBe(false);
     expect(isStudioPlan("free")).toBe(false);
+  });
+});
+
+describe("showLimitFor", () => {
+  it("returns the numeric cap for limited tiers and null for unlimited", () => {
+    expect(showLimitFor("free")).toBe(1);
+    expect(showLimitFor("creator")).toBe(5);
+    expect(showLimitFor("studio")).toBeNull();
+    expect(showLimitFor("studio_plus")).toBeNull();
+  });
+});
+
+describe("canCreateShow", () => {
+  it("gates free at 1 show", () => {
+    expect(canCreateShow("free", 0)).toBe(true);
+    expect(canCreateShow("free", 1)).toBe(false);
+  });
+
+  it("gates creator at 5 shows", () => {
+    expect(canCreateShow("creator", 4)).toBe(true);
+    expect(canCreateShow("creator", 5)).toBe(false);
+  });
+
+  it("never blocks unlimited tiers", () => {
+    expect(canCreateShow("studio", 999)).toBe(true);
+    expect(canCreateShow("studio_plus", 999)).toBe(true);
   });
 });
 
