@@ -9,6 +9,7 @@ import { createNotification } from "@/lib/notify";
 import { recordAudit } from "@/lib/audit";
 import { emailsFor } from "@/lib/teamServer";
 import { rateLimit, clientKey, isUuid, isEmail, isOneOf } from "@/lib/guard";
+import { getPlan, canAddMember, seatLimitFor } from "@/lib/plan";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +65,42 @@ export async function POST(request: Request) {
       { status: 409 }
     );
   }
+
+  // Seat limit: enforce the SHOW OWNER's plan (not the caller's). Counts only
+  // COLLABORATORS (non-owner members); the owner never consumes a seat.
+  const { data: ownerRow } = await db
+    .from("show_memberships")
+    .select("user_id")
+    .eq("show_id", showId)
+    .eq("role", "owner")
+    .maybeSingle();
+  let ownerId = ownerRow?.user_id as string | undefined;
+  if (!ownerId) {
+    // Fall back to the show's creator if no explicit owner membership row.
+    const { data: show } = await db
+      .from("shows")
+      .select("user_id")
+      .eq("id", showId)
+      .maybeSingle();
+    ownerId = show?.user_id as string | undefined;
+  }
+  const ownerPlan = ownerId ? await getPlan(db, ownerId) : "free";
+
+  const { count: collaboratorCount } = await db
+    .from("show_memberships")
+    .select("*", { count: "exact", head: true })
+    .eq("show_id", showId)
+    .neq("role", "owner");
+
+  if (!canAddMember(ownerPlan, collaboratorCount ?? 0))
+    return NextResponse.json(
+      {
+        error: "This show has reached its team-member limit for the current plan.",
+        limit: seatLimitFor(ownerPlan),
+        plan: ownerPlan,
+      },
+      { status: 403 }
+    );
 
   const { error } = await db
     .from("show_memberships")

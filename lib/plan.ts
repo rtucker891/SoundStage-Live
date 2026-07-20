@@ -49,6 +49,28 @@ export function canCreateShow(plan: Plan, currentShowCount: number): boolean {
   return lim === null || currentShowCount < lim;
 }
 
+/**
+ * Per-show team seat limit: how many COLLABORATORS (non-owner members) a show
+ * may have. Keyed off the SHOW OWNER's plan. All tiers are finite (no unlimited
+ * seat tier). The owner never consumes a seat.
+ */
+export const SEAT_LIMITS: Record<Plan, number> = {
+  free: 1,
+  creator: 3,
+  studio: 15,
+  studio_plus: 15,
+};
+
+/** The collaborator seat limit for a plan. */
+export function seatLimitFor(plan: Plan): number {
+  return SEAT_LIMITS[plan];
+}
+
+/** True if a show owned by `plan` with `currentCollaboratorCount` may add one more. */
+export function canAddMember(plan: Plan, currentCollaboratorCount: number): boolean {
+  return currentCollaboratorCount < SEAT_LIMITS[plan];
+}
+
 /** Subscription statuses that grant the row's paid plan. */
 const ACTIVE_STATUSES = new Set(["active", "trialing"]);
 

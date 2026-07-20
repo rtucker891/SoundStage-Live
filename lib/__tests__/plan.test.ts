@@ -6,6 +6,8 @@ import {
   isStudioPlan,
   showLimitFor,
   canCreateShow,
+  seatLimitFor,
+  canAddMember,
 } from "../plan";
 
 /**
@@ -68,6 +70,32 @@ describe("canCreateShow", () => {
   it("never blocks unlimited tiers", () => {
     expect(canCreateShow("studio", 999)).toBe(true);
     expect(canCreateShow("studio_plus", 999)).toBe(true);
+  });
+});
+
+describe("seatLimitFor", () => {
+  it("returns the per-show collaborator cap for each plan", () => {
+    expect(seatLimitFor("free")).toBe(1);
+    expect(seatLimitFor("creator")).toBe(3);
+    expect(seatLimitFor("studio")).toBe(15);
+    expect(seatLimitFor("studio_plus")).toBe(15);
+  });
+});
+
+describe("canAddMember", () => {
+  it("gates free at 1 collaborator", () => {
+    expect(canAddMember("free", 0)).toBe(true);
+    expect(canAddMember("free", 1)).toBe(false);
+  });
+
+  it("gates creator at 3 collaborators", () => {
+    expect(canAddMember("creator", 2)).toBe(true);
+    expect(canAddMember("creator", 3)).toBe(false);
+  });
+
+  it("gates studio at 15 collaborators", () => {
+    expect(canAddMember("studio", 14)).toBe(true);
+    expect(canAddMember("studio", 15)).toBe(false);
   });
 });
 
