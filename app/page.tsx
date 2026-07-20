@@ -125,10 +125,10 @@ export default async function Home() {
           </div>
 
           <div className="rounded-2xl bg-white p-6 shadow">
-            <h2 className="text-2xl font-bold">Video Podcasts</h2>
+            <h2 className="text-2xl font-bold">SoundStage Studio</h2>
             <p className="mt-3 text-slate-600">
-              Record, edit, and publish both audio and video podcasts from a
-              single platform.
+              Record and edit professional multitrack audio in our full studio,
+              then publish straight to your show.
             </p>
           </div>
 
