@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
 type Interval = "month" | "year";
-type PaidPlan = "creator" | "studio";
+type PaidPlan = "creator" | "studio" | "studio_plus";
 
 /**
  * Client-side pricing cards. The monthly/annual toggle is shared across all
@@ -64,6 +64,8 @@ export default function PricingPlans() {
   const creatorUnit = annual ? "/yr" : "/mo";
   const studioPrice = annual ? "$290" : "$29";
   const studioUnit = annual ? "/yr" : "/mo";
+  const studioPlusPrice = annual ? "$500" : "$50";
+  const studioPlusUnit = annual ? "/yr" : "/mo";
 
   return (
     <>
@@ -97,7 +99,7 @@ export default function PricingPlans() {
         </span>
       </div>
 
-      <section className="mt-10 grid items-start gap-6 md:grid-cols-3">
+      <section className="mt-10 grid items-start gap-6 md:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-2xl bg-white p-6 shadow">
           <h2 className="text-2xl font-bold">Free</h2>
           <p className="mt-2 text-slate-600">
@@ -202,6 +204,39 @@ export default function PricingPlans() {
             className="mt-6 block w-full rounded-lg bg-slate-900 px-5 py-3 text-center font-semibold text-white disabled:opacity-60"
           >
             {busy === "studio" ? "Starting…" : "Choose Studio"}
+          </button>
+        </div>
+
+        <div className="rounded-2xl border-2 border-amber-500 bg-white p-6 shadow-xl">
+          <p className="text-sm font-semibold text-amber-600">Top Tier</p>
+          <h2 className="mt-2 text-2xl font-bold">Studio Plus</h2>
+          <p className="mt-2 text-slate-600">
+            For studios producing at the highest level.
+          </p>
+          <p className="mt-6 text-4xl font-bold">
+            {studioPlusPrice}
+            <span className="text-lg font-medium text-slate-500">
+              {studioPlusUnit}
+            </span>
+          </p>
+          <p className="text-sm text-slate-500">
+            {annual ? "$50/mo billed monthly" : "or $500/yr — save 2 months"}
+          </p>
+
+          <ul className="mt-6 space-y-3 text-slate-600">
+            <li>✓ Everything in Studio</li>
+            <li>✓ SoundStage Studio app (multitrack recording &amp; editing)</li>
+            <li>✓ Migrate recordings to Live</li>
+            <li>✓ Priority support</li>
+          </ul>
+
+          <button
+            type="button"
+            onClick={() => choosePlan("studio_plus")}
+            disabled={busy !== null}
+            className="mt-6 block w-full rounded-lg bg-gradient-to-r from-amber-500 to-purple-700 px-5 py-3 text-center font-semibold text-white disabled:opacity-60"
+          >
+            {busy === "studio_plus" ? "Starting…" : "Choose Studio Plus"}
           </button>
         </div>
       </section>

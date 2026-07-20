@@ -5,6 +5,7 @@ export const PLAN_LABELS: Record<Plan, string> = {
   free: "Free",
   creator: "Creator",
   studio: "Studio",
+  studio_plus: "Studio Plus",
 };
 
 /**
@@ -19,10 +20,14 @@ export default function PlanBadge({
   plan: Plan;
   className?: string;
 }) {
-  const isPaid = plan !== "free";
-  const style = isPaid
-    ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white"
-    : "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200";
+  // Studio Plus is the top tier — a deeper amber→purple gradient sets it apart
+  // from the standard paid (purple→pink) gradient.
+  const style =
+    plan === "studio_plus"
+      ? "bg-gradient-to-r from-amber-500 to-purple-700 text-white"
+      : plan !== "free"
+        ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white"
+        : "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200";
 
   return (
     <span

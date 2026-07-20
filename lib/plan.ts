@@ -17,19 +17,24 @@
  */
 import { type SupabaseClient } from "@supabase/supabase-js";
 
-export type Plan = "free" | "creator" | "studio";
+export type Plan = "free" | "creator" | "studio" | "studio_plus";
 
 /** True if the given plan unlocks the premium AI Studio pipeline. */
 export function isStudioPlan(plan: Plan): boolean {
-  return plan === "studio";
+  return plan === "studio" || plan === "studio_plus";
 }
+
+/** Paid plans backed by a real Stripe subscription. */
+const PAID_PLANS = new Set<Plan>(["creator", "studio", "studio_plus"]);
 
 /** Subscription statuses that grant the row's paid plan. */
 const ACTIVE_STATUSES = new Set(["active", "trialing"]);
 
 /** Normalize an arbitrary stored plan string to a known Plan. */
 function normalizePlan(value: unknown): Plan {
-  return value === "studio" || value === "creator" ? value : "free";
+  return typeof value === "string" && PAID_PLANS.has(value as Plan)
+    ? (value as Plan)
+    : "free";
 }
 
 /** User ids marked Studio via env config (test/manual override, no billing). */

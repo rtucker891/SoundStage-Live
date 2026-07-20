@@ -68,7 +68,9 @@ export default function LiveStudioPage() {
 
   const [episode, setEpisode] = useState<Episode | null>(null);
   const [loading, setLoading] = useState(true);
-  const [plan, setPlan] = useState<"free" | "studio" | null>(null);
+  const [plan, setPlan] = useState<"free" | "studio" | "studio_plus" | null>(
+    null
+  );
 
   const [generating, setGenerating] = useState(false);
   const [pkg, setPkg] = useState<EpisodePackage | null>(null);
@@ -101,7 +103,9 @@ export default function LiveStudioPage() {
         (async () => {
           try {
             const res = await fetch("/api/plan", { headers: await authHeaders() });
-            const json = (await res.json()) as { plan?: "free" | "studio" };
+            const json = (await res.json()) as {
+              plan?: "free" | "studio" | "studio_plus";
+            };
             return json.plan ?? "free";
           } catch {
             return "free" as const;
@@ -122,7 +126,7 @@ export default function LiveStudioPage() {
     load();
   }, [episodeId]);
 
-  const isStudio = plan === "studio";
+  const isStudio = plan === "studio" || plan === "studio_plus";
 
   async function handleGenerate() {
     setGenerating(true);

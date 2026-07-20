@@ -13,7 +13,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * POST /api/stripe/checkout { plan: 'creator'|'studio', interval: 'month'|'year' }
+ * POST /api/stripe/checkout { plan: 'creator'|'studio'|'studio_plus', interval: 'month'|'year' }
  *
  * Creates a Stripe Checkout Session (subscription mode) for the signed-in user
  * and returns { url } for the client to redirect to. Reuses the user's existing
@@ -35,9 +35,9 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const plan = body?.plan;
   const interval = body?.interval ?? "month";
-  if (plan !== "creator" && plan !== "studio")
+  if (plan !== "creator" && plan !== "studio" && plan !== "studio_plus")
     return NextResponse.json(
-      { error: "plan must be 'creator' or 'studio'." },
+      { error: "plan must be 'creator', 'studio', or 'studio_plus'." },
       { status: 400 }
     );
   if (interval !== "month" && interval !== "year")

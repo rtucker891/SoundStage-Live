@@ -11,7 +11,7 @@
  */
 import type { Plan } from "@/lib/plan";
 
-export type PaidPlan = "creator" | "studio";
+export type PaidPlan = "creator" | "studio" | "studio_plus";
 export type BillingInterval = "month" | "year";
 
 /** Documented test-mode price IDs (fallbacks when env overrides are absent). */
@@ -23,6 +23,12 @@ const DEFAULT_PRICE_IDS = {
   studio: {
     month: "price_1Tsl5LHGpczA907H5bOxJPlt",
     year: "price_1Tsl5LHGpczA907HTSU6MhgR",
+  },
+  // No test-mode price exists for Studio Plus; these placeholders never match a
+  // real Stripe ID, so the mapping only resolves via the env overrides below.
+  studio_plus: {
+    month: "price_studio_plus_month_unset",
+    year: "price_studio_plus_year_unset",
   },
 } as const;
 
@@ -42,6 +48,10 @@ export function priceIdFor(plan: PaidPlan, interval: BillingInterval): string {
         month: env.STRIPE_PRICE_STUDIO_MONTH,
         year: env.STRIPE_PRICE_STUDIO_YEAR,
       },
+      studio_plus: {
+        month: env.STRIPE_PRICE_STUDIO_PLUS_MONTH,
+        year: env.STRIPE_PRICE_STUDIO_PLUS_YEAR,
+      },
     };
   return overrides[plan][interval] || DEFAULT_PRICE_IDS[plan][interval];
 }
@@ -54,7 +64,7 @@ export function priceIdFor(plan: PaidPlan, interval: BillingInterval): string {
  */
 export function planForPriceId(priceId: string | null | undefined): Plan {
   if (!priceId) return "free";
-  for (const plan of ["creator", "studio"] as const) {
+  for (const plan of ["creator", "studio", "studio_plus"] as const) {
     for (const interval of ["month", "year"] as const) {
       if (priceId === priceIdFor(plan, interval)) return plan;
     }
@@ -67,7 +77,7 @@ export function intervalForPriceId(
   priceId: string | null | undefined
 ): BillingInterval | null {
   if (!priceId) return null;
-  for (const plan of ["creator", "studio"] as const) {
+  for (const plan of ["creator", "studio", "studio_plus"] as const) {
     for (const interval of ["month", "year"] as const) {
       if (priceId === priceIdFor(plan, interval)) return interval;
     }

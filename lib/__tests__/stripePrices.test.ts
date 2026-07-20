@@ -40,6 +40,33 @@ describe("priceIdFor", () => {
       expect(intervalForPriceId("price_env_override")).toBe("month");
     });
   });
+
+  describe("studio_plus (env-driven, no test-mode default)", () => {
+    const originalMonth = process.env.STRIPE_PRICE_STUDIO_PLUS_MONTH;
+    const originalYear = process.env.STRIPE_PRICE_STUDIO_PLUS_YEAR;
+    beforeEach(() => {
+      process.env.STRIPE_PRICE_STUDIO_PLUS_MONTH = "price_sp_month_live";
+      process.env.STRIPE_PRICE_STUDIO_PLUS_YEAR = "price_sp_year_live";
+    });
+    afterEach(() => {
+      if (originalMonth === undefined)
+        delete process.env.STRIPE_PRICE_STUDIO_PLUS_MONTH;
+      else process.env.STRIPE_PRICE_STUDIO_PLUS_MONTH = originalMonth;
+      if (originalYear === undefined)
+        delete process.env.STRIPE_PRICE_STUDIO_PLUS_YEAR;
+      else process.env.STRIPE_PRICE_STUDIO_PLUS_YEAR = originalYear;
+    });
+
+    it("reads STRIPE_PRICE_STUDIO_PLUS_MONTH / _YEAR", () => {
+      expect(priceIdFor("studio_plus", "month")).toBe("price_sp_month_live");
+      expect(priceIdFor("studio_plus", "year")).toBe("price_sp_year_live");
+    });
+
+    it("resolves a studio_plus price back to its plan and interval", () => {
+      expect(planForPriceId("price_sp_month_live")).toBe("studio_plus");
+      expect(intervalForPriceId("price_sp_year_live")).toBe("year");
+    });
+  });
 });
 
 describe("planForPriceId", () => {

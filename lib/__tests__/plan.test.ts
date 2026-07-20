@@ -32,8 +32,9 @@ function throwingDb(): SupabaseClient {
 const USER = "11111111-1111-4111-8111-111111111111";
 
 describe("isStudioPlan", () => {
-  it("only 'studio' unlocks the premium pipeline", () => {
+  it("'studio' and 'studio_plus' unlock the premium pipeline", () => {
     expect(isStudioPlan("studio")).toBe(true);
+    expect(isStudioPlan("studio_plus")).toBe(true);
     expect(isStudioPlan("creator")).toBe(false);
     expect(isStudioPlan("free")).toBe(false);
   });
@@ -57,6 +58,11 @@ describe("getPlan", () => {
   it("honors trialing as active", async () => {
     const db = fakeDb({ data: { plan: "creator", status: "trialing" }, error: null });
     expect(await getPlan(db, USER)).toBe("creator");
+  });
+
+  it("normalizes a 'studio_plus' subscription to 'studio_plus'", async () => {
+    const db = fakeDb({ data: { plan: "studio_plus", status: "active" }, error: null });
+    expect(await getPlan(db, USER)).toBe("studio_plus");
   });
 
   it("falls back to 'free' when the subscription is not active", async () => {
