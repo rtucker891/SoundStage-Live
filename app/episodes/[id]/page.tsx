@@ -14,11 +14,18 @@ import { getEpisodes } from "@/lib/api";
 import { authHeaders } from "@/lib/authHeaders";
 
 import type { Episode } from "@/types/episode";
+import type { Plan } from "@/lib/plan";
+
+// Where the separate SoundStage Studio app lives (override per-env; the button
+// opens `${STUDIO_URL}/?import=<episodeId>`).
+const STUDIO_URL =
+  process.env.NEXT_PUBLIC_STUDIO_URL ?? "https://soundstage-studio.vercel.app";
 
 export default function EpisodeDetailsPage() {
   const params = useParams();
 
   const [episode, setEpisode] = useState<Episode | null>(null);
+  const [plan, setPlan] = useState<Plan | null>(null);
   const [loading, setLoading] = useState(true);
   const [generatingNotes, setGeneratingNotes] = useState(false);
 const [generatedNotes, setGeneratedNotes] = useState("");
@@ -35,6 +42,18 @@ const [generatedArtwork, setGeneratedArtwork] = useState("");
         setEpisode(selectedEpisode || null);
       })
       .finally(() => setLoading(false));
+
+    // Resolve the caller's plan so the "Open in Studio" action can be gated to
+    // studio_plus (same authoritative /api/plan signal the live-studio page uses).
+    (async () => {
+      try {
+        const res = await fetch("/api/plan", { headers: await authHeaders() });
+        const json = (await res.json()) as { plan?: Plan };
+        setPlan(json.plan ?? "free");
+      } catch {
+        setPlan("free");
+      }
+    })();
   }, [params.id]);
   async function generateShowNotes() {
   if (!episode) return;
@@ -195,6 +214,32 @@ const [generatedArtwork, setGeneratedArtwork] = useState("");
               </p>
             </Link>
           </div>
+
+          {plan === "studio_plus" && episode.status === "Published" && (
+            <div className="mt-8 rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-50 to-purple-50 p-6 shadow">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-wide text-amber-600">
+                    Studio Plus
+                  </p>
+                  <h2 className="text-2xl font-bold">Open in Studio</h2>
+                  <p className="mt-2 text-sm text-slate-600">
+                    Re-edit this episode&apos;s finished audio in SoundStage
+                    Studio (multitrack recording &amp; editing).
+                  </p>
+                </div>
+
+                <a
+                  href={`${STUDIO_URL}/?import=${episode.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="whitespace-nowrap rounded-xl bg-gradient-to-r from-amber-500 to-purple-700 px-5 py-3 font-semibold text-white"
+                >
+                  Open in Studio
+                </a>
+              </div>
+            </div>
+          )}
           <div className="mt-8 rounded-2xl border border-purple-200 bg-white p-6 shadow">
   <div className="flex items-center justify-between gap-4">
     <div>
