@@ -54,6 +54,20 @@ export async function syncSubscription(
   const userId = await resolveUserId(db, sub);
   if (!userId) return; // Nothing we can key on — ignore.
 
+  // Manually managed accounts (comp/staff/owner) carry manual_override=true and
+  // must NEVER be touched by Stripe — a stray/test event could otherwise knock
+  // their plan down (e.g. studio_plus → free). Only humans/DB set this flag, so
+  // we never write it here either.
+  const { data: existing } = await db
+    .from("subscriptions")
+    .select("manual_override")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (existing?.manual_override === true) {
+    console.log(`[stripe/sync] skipping manual_override account ${userId}`);
+    return;
+  }
+
   const priceId = sub.items?.data?.[0]?.price?.id ?? null;
   const status = sub.status;
   const paid = status === "active" || status === "trialing";
