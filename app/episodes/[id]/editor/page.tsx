@@ -4,6 +4,7 @@ import Image from "next/image";
 
 import EpisodeNavigation from "@/components/episodes/EpisodeNavigation";
 import EpisodeMetaManager from "@/components/episodes/EpisodeMetaManager";
+import BrowserWaveformEditor from "@/components/editor/BrowserWaveformEditor";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
@@ -957,6 +958,29 @@ export default function EpisodeEditorPage() {
     }
   }
 
+  async function saveWaveformEdit(blob: Blob, durationSeconds: number) {
+    if (!episode) throw new Error("The episode is no longer available.");
+    const file = new File([blob], `edited-${Date.now()}.wav`, { type: "audio/wav" });
+    const uploaded = await uploadFileToStorage(file, `episodes/${episode.id}/recordings`);
+
+    await createRecording({
+      episodeId: episode.id,
+      name: `Browser edit ${new Date().toLocaleTimeString()}`,
+      duration: durationSeconds,
+      audioUrl: uploaded.url,
+    });
+
+    await createAsset({
+      episodeId: episode.id,
+      name: "Browser waveform edit",
+      type: "recording",
+      fileName: file.name,
+      fileSize: file.size,
+      mimeType: file.type,
+      url: uploaded.url,
+    });
+  }
+
   return (
     <AppShell>
       {loading ? (
@@ -1032,7 +1056,22 @@ export default function EpisodeEditorPage() {
     </p>
   </div>
 </div>
-  </div>
+</div>
+
+          {recordingAsset?.url ? (
+            <BrowserWaveformEditor
+              audioUrl={recordingAsset.url}
+              episodeTitle={episode.title}
+              onSave={saveWaveformEdit}
+            />
+          ) : (
+            <div className="mt-8 rounded-3xl border border-cyan-200 bg-gradient-to-br from-white to-cyan-50 p-8 shadow">
+              <p className="text-sm font-bold uppercase tracking-[0.2em] text-cyan-700">Browser waveform editor</p>
+              <h2 className="mt-2 text-2xl font-black text-slate-950">Add a recording to begin editing</h2>
+              <p className="mt-3 text-base text-slate-600">Once this episode has audio, its waveform will appear here with zoom, split, trim, playback speed, and non-destructive saving.</p>
+              <a href={`/episodes/${episode.id}/live-studio`} className="mt-5 inline-block rounded-xl bg-cyan-700 px-5 py-3 font-bold text-white">Record or upload audio</a>
+            </div>
+          )}
 
           <div className="mt-8 rounded-2xl border border-blue-200 bg-gradient-to-br from-white to-blue-50 p-6 shadow">
             <div className="mb-4 flex items-center justify-between">
