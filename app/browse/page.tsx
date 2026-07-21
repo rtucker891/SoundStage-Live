@@ -39,9 +39,12 @@ export default async function BrowseShowsPage({ searchParams }: Props) {
     );
   }
 
+  // Public browse shows ONLY the published cover art (published_cover_art_url).
+  // The draft cover_art_url is intentionally not used here, so unpublished /
+  // work-in-progress artwork never leaks onto the public page.
   let query = supabase
     .from("shows")
-    .select("id, title, description, cover_art_url")
+    .select("id, title, description, published_cover_art_url")
     .order("created_at", { ascending: false });
   if (showIdFilter) {
     // Empty list must yield no shows (not all shows), so guard against [].
@@ -128,9 +131,9 @@ export default async function BrowseShowsPage({ searchParams }: Props) {
                 href={`/public-shows/${show.id}`}
                 className="rounded-3xl bg-white p-5 shadow transition hover:-translate-y-1 hover:shadow-xl"
               >
-                {show.cover_art_url ? (
+                {show.published_cover_art_url ? (
                   <Image
-                    src={show.cover_art_url}
+                    src={show.published_cover_art_url}
                     alt={show.title}
                     width={400}
                     height={400}
