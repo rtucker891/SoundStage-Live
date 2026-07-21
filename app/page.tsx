@@ -58,7 +58,7 @@ export default async function Home() {
               </p>
 
               <h1 className="mt-3 text-4xl font-black leading-tight lg:text-5xl">
-                Your whole podcast, from mic to the world.
+                A real studio and a publishing platform, in one.
               </h1>
 
               <p className="mt-6 max-w-xl text-xl leading-relaxed text-white/80">
