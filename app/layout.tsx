@@ -1,15 +1,19 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, Oswald } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Body font: clean, highly readable workhorse for paragraphs, buttons, UI.
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+// Display font: tall, condensed, bold — used for headlines to give the brand
+// its broadcast/media character. Loaded in a few weights we actually use.
+const oswald = Oswald({
+  variable: "--font-oswald",
   subsets: ["latin"],
+  weight: ["500", "600", "700"],
 });
 
 // The site's public base URL. Used as the root for all Open Graph / Twitter
@@ -45,7 +49,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${oswald.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

@@ -8,8 +8,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-oswald);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,5 +22,11 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+/* Headlines use the tall, condensed Oswald display font for brand character.
+   Body text stays on Inter (set above) for readability. */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-oswald), var(--font-inter), sans-serif;
 }
