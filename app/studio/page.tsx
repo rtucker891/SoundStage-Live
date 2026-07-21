@@ -21,10 +21,11 @@ export default function StudioPage() {
   return (
     <AppShell>
       <div>
-        <h1 className="text-3xl font-bold">Studio</h1>
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-600">Create</p>
+        <h1 className="mt-2 text-3xl font-black">Record / Edit</h1>
 
         <p className="mt-2 text-slate-600">
-          Choose an episode to open its recording studio.
+          Choose an episode to record or continue editing in SoundStage.
         </p>
       </div>
 

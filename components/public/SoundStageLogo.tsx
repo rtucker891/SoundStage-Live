@@ -6,7 +6,7 @@ export default function SoundStageLogo() {
     <Link href="/" className="flex items-center gap-3">
       <Image
         src="/logo.png"
-        alt="SoundStage Live"
+        alt="SoundStage"
         width={1756}
         height={664}
         className="h-14 w-auto"
@@ -14,11 +14,11 @@ export default function SoundStageLogo() {
 
       <div>
         <div className="text-3xl font-black">
-          SoundStage Live
+          SoundStage
         </div>
 
         <div className="text-xs uppercase tracking-widest text-slate-500">
-          Create. Publish. Be Heard.
+          Create. Publish. Grow.
         </div>
       </div>
     </Link>

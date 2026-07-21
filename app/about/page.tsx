@@ -8,7 +8,7 @@ export default function AboutPage() {
         <PublicNav />
         <section className="rounded-3xl bg-gradient-to-r from-indigo-700 via-purple-700 to-pink-600 p-12 text-white shadow-xl">
           <p className="text-sm font-semibold uppercase tracking-wide text-white/70">
-            About SoundStage Live
+            About SoundStage
           </p>
 
           <h1 className="mt-4 text-5xl font-bold">
@@ -16,18 +16,18 @@ export default function AboutPage() {
           </h1>
 
           <p className="mt-6 max-w-3xl text-xl text-white/80">
-            SoundStage Live helps creators record, edit, package, publish,
+            SoundStage helps creators record, edit, package, publish,
             and share podcasts from one simple workspace.
           </p>
         </section>
 
         <section className="mt-10 rounded-2xl bg-white p-8 shadow">
           <h2 className="text-3xl font-bold">
-            What SoundStage Live Does
+            What SoundStage Does
           </h2>
 
           <p className="mt-4 text-slate-600">
-            SoundStage Live combines browser recording, AI transcription,
+            SoundStage combines browser recording, AI transcription,
             show notes, podcast artwork, publishing tools, and public
             podcast pages into one creator platform.
           </p>

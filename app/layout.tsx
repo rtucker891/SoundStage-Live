@@ -24,15 +24,13 @@ const siteUrl =
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "SoundStage Live",
-    template: "%s · SoundStage Live",
+    default: "SoundStage",
+    template: "%s · SoundStage",
   },
   description:
-    "Create, produce, and publish your podcast — record or upload audio, " +
-    "generate transcripts and show notes with AI, and distribute a " +
-    "validated feed to Spotify and Apple Podcasts.",
+    "Record, edit, publish, monetize, and grow your podcast from one creator workspace.",
   openGraph: {
-    siteName: "SoundStage Live",
+    siteName: "SoundStage",
     type: "website",
     url: siteUrl,
   },

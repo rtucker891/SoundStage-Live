@@ -1,9 +1,11 @@
 import Link from "next/link";
+import PublicNav from "@/components/public/PublicNav";
 
 export default function ContactPage() {
   return (
     <main className="min-h-screen bg-slate-100">
       <div className="mx-auto max-w-5xl p-8">
+        <PublicNav />
         <section className="rounded-3xl bg-gradient-to-r from-indigo-700 via-purple-700 to-pink-600 p-12 text-white shadow-xl">
           <p className="text-sm font-semibold uppercase tracking-wide text-white/70">
             Contact Us

@@ -1,12 +1,14 @@
 import Link from "next/link";
+import PublicNav from "@/components/public/PublicNav";
 
 export default function PublicHomePage() {
   return (
     <main className="min-h-screen bg-slate-100">
       <div className="mx-auto max-w-7xl p-8">
+        <PublicNav />
         <section className="rounded-3xl bg-gradient-to-r from-indigo-700 via-purple-700 to-pink-600 p-12 text-white shadow-xl">
           <p className="text-sm font-semibold uppercase tracking-wide text-white/70">
-            SoundStage Live
+            SoundStage
           </p>
 
           <h1 className="mt-4 max-w-4xl text-6xl font-bold">
@@ -20,14 +22,14 @@ export default function PublicHomePage() {
 
           <div className="mt-8 flex flex-wrap gap-4">
             <Link
-              href="/"
+              href="/dashboard"
               className="rounded-xl bg-white px-6 py-3 font-semibold text-slate-900"
             >
-              Creator Dashboard
+              Open SoundStage
             </Link>
 
             <Link
-              href="/public-shows"
+              href="/browse"
               className="rounded-xl border border-white/30 px-6 py-3 font-semibold text-white"
             >
               Browse Shows

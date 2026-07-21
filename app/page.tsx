@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import PublicNav from "@/components/public/PublicNav";
 
 export const dynamic = "force-dynamic";
 
@@ -17,44 +18,13 @@ export default async function Home() {
   return (
     <main className="min-h-screen bg-slate-100">
       <div className="mx-auto max-w-7xl p-8">
-        <header className="mb-8 flex items-center justify-between rounded-2xl bg-white p-5 shadow">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-xl text-white shadow">
-              🎙️
-            </div>
-
-            <div>
-              <div className="text-2xl font-black text-slate-900">
-                SoundStage Live
-              </div>
-
-              <div className="text-xs uppercase tracking-widest text-slate-500">
-                From mic to everywhere.
-              </div>
-            </div>
-          </Link>
-
-          <nav className="flex items-center gap-6 text-sm font-semibold text-slate-700">
-            <Link href="/">Home</Link>
-            <Link href="/browse">Browse Shows</Link>
-            <Link href="/search">Search</Link>
-            <Link href="/pricing">Pricing</Link>
-            <Link href="/about">About</Link>
-            <Link href="/contact">Contact</Link>
-            <Link
-              href="/dashboard"
-              className="rounded-xl bg-slate-900 px-5 py-3 text-white"
-            >
-              Dashboard
-            </Link>
-          </nav>
-        </header>
+        <PublicNav />
 
         <section className="overflow-hidden rounded-3xl bg-slate-950 text-white shadow-2xl">
           <div className="grid lg:grid-cols-2">
             <div className="p-6 lg:p-8">
               <p className="text-sm font-bold uppercase tracking-wide text-purple-400">
-                SoundStage Live
+                SoundStage
               </p>
 
               <h1 className="mt-3 text-4xl font-black leading-tight lg:text-5xl">
@@ -79,7 +49,7 @@ export default async function Home() {
                   href="/dashboard"
                   className="rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-6 py-3 font-bold text-white shadow-lg"
                 >
-                  Creator Dashboard
+                  Open SoundStage
                 </Link>
 
                 <Link
@@ -111,6 +81,8 @@ export default async function Home() {
                 src="/images/hero-podcaster.png"
                 alt="Podcast Host"
                 fill
+                priority
+                sizes="(min-width: 1024px) 50vw, 100vw"
                 className="object-cover"
               />
 
@@ -273,7 +245,7 @@ export default async function Home() {
         >
           <p className="text-sm font-bold uppercase tracking-wide text-slate-400">
             {(episode.shows as { title?: string } | null)?.title ||
-              "SoundStage Live"}
+              "SoundStage"}
           </p>
 
           <h3 className="mt-2 text-xl font-bold">
@@ -298,7 +270,7 @@ export default async function Home() {
         <footer className="mt-16 rounded-3xl bg-slate-950 p-8 text-white">
   <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
     <div>
-      <h2 className="text-2xl font-black">SoundStage Live</h2>
+      <h2 className="text-2xl font-black">SoundStage</h2>
       <p className="mt-2 text-sm text-slate-300">
         Record, edit, and publish your podcast — all in one place.
       </p>
@@ -306,16 +278,14 @@ export default async function Home() {
 
     <div className="flex flex-wrap gap-5 text-sm font-semibold text-slate-300">
       <Link href="/">Home</Link>
-      <Link href="/browse">Browse Shows</Link>
-      <Link href="/search">Search</Link>
+      <Link href="/features">Features</Link>
       <Link href="/pricing">Pricing</Link>
-      <Link href="/about">About</Link>
       <Link href="/contact">Contact</Link>
     </div>
   </div>
 
   <p className="mt-6 text-sm text-slate-500">
-    © 2026 SoundStage Live. All rights reserved.
+    © 2026 SoundStage. All rights reserved.
   </p>
 </footer>
       </div>
