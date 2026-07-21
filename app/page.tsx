@@ -29,7 +29,7 @@ export default async function Home() {
               </div>
 
               <div className="text-xs uppercase tracking-widest text-slate-500">
-                Create. Publish. Be Heard.
+                From mic to everywhere.
               </div>
             </div>
           </Link>
@@ -58,12 +58,20 @@ export default async function Home() {
               </p>
 
               <h1 className="mt-3 text-4xl font-black leading-tight lg:text-5xl">
-                Create, Publish, and Share Podcasts
+                Your whole podcast, from mic to the world.
               </h1>
 
               <p className="mt-6 max-w-xl text-xl leading-relaxed text-white/80">
-                Record episodes, generate AI content, create artwork,
-                publish shows, and grow your audience.
+                Record in a real multitrack studio, let AI handle the show notes
+                and artwork, and publish everywhere — Spotify, Apple, YouTube —
+                without ever leaving SoundStage.
+              </p>
+
+              <p className="mt-5 max-w-xl rounded-2xl border border-purple-400/30 bg-purple-500/10 px-5 py-4 text-base leading-relaxed text-white/90">
+                Most platforms just <span className="font-semibold">host</span> your
+                podcast. SoundStage is where you{" "}
+                <span className="font-semibold text-purple-300">record it, edit it, and ship it</span>{" "}
+                — a full studio built right in.
               </p>
 
               <div className="mt-8 flex flex-wrap gap-4">
@@ -116,19 +124,23 @@ export default async function Home() {
         </section>
 
         <section className="mt-12 grid gap-6 md:grid-cols-3">
+          <div className="rounded-2xl bg-white p-6 shadow ring-2 ring-purple-500/40">
+            <p className="text-xs font-bold uppercase tracking-wide text-purple-600">
+              What makes us different
+            </p>
+            <h2 className="mt-1 text-2xl font-bold">The Studio, built in</h2>
+            <p className="mt-3 text-slate-600">
+              Record and edit professional multitrack audio right inside
+              SoundStage — then publish straight to your show. No other app,
+              no exporting, no bouncing between tools.
+            </p>
+          </div>
+
           <div className="rounded-2xl bg-white p-6 shadow">
             <h2 className="text-2xl font-bold">AI Production</h2>
             <p className="mt-3 text-slate-600">
               Generate transcripts, show notes, episode descriptions, artwork,
               and social media content automatically.
-            </p>
-          </div>
-
-          <div className="rounded-2xl bg-white p-6 shadow">
-            <h2 className="text-2xl font-bold">SoundStage Studio</h2>
-            <p className="mt-3 text-slate-600">
-              Record and edit professional multitrack audio in our full studio,
-              then publish straight to your show.
             </p>
           </div>
 
@@ -288,7 +300,7 @@ export default async function Home() {
     <div>
       <h2 className="text-2xl font-black">SoundStage Live</h2>
       <p className="mt-2 text-sm text-slate-300">
-        Create, publish, and share podcasts from anywhere.
+        Record, edit, and publish your podcast — all in one place.
       </p>
     </div>
 
