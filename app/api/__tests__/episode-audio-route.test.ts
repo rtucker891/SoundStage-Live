@@ -7,17 +7,22 @@ let mockUid: string | null = "user-1";
 let mockRole: string | null = "owner";
 let mockPlan: Plan = "studio_plus";
 let mockEpisode: Record<string, unknown> | null = null;
+let mockRecording: Record<string, unknown> | null = null;
+let mockAsset: Record<string, unknown> | null = null;
 
 vi.mock("@/lib/teamServer", () => ({
   admin: () => ({
-    from: () => {
+    from: (table: string) => {
       const chain: Record<string, unknown> = {
         select: () => chain,
         eq: () => chain,
-        maybeSingle: async () => ({ data: mockEpisode, error: null }),
+        order: () => chain,
+        limit: () => chain,
+        maybeSingle: async () => ({ data: table === "episodes" ? mockEpisode : table === "recordings" ? mockRecording : mockAsset, error: null }),
       };
       return chain;
     },
+    storage: { from: () => ({ createSignedUrl: async () => ({ data: null, error: null }) }) },
   }),
   callerId: async () => mockUid,
   roleOnShow: async () => mockRole,
@@ -56,6 +61,8 @@ describe("GET /api/episodes/[id]/audio", () => {
       published_audio_size: 12345,
       published_audio_duration: 678,
     };
+    mockRecording = null;
+    mockAsset = null;
   });
 
   it("401s an anonymous caller", async () => {
@@ -64,13 +71,10 @@ describe("GET /api/episodes/[id]/audio", () => {
     expect(res.status).toBe(401);
   });
 
-  it("403s a non-studio_plus caller (even a plain studio owner)", async () => {
+  it("allows a Studio-plan owner", async () => {
     mockPlan = "studio";
     const res = await call();
-    expect(res.status).toBe(403);
-    const json = await res.json();
-    expect(json.error).toBe("SoundStage Studio requires the Studio Plus plan.");
-    expect(json.plan).toBe("studio");
+    expect(res.status).toBe(200);
   });
 
   it("returns 200 with the audio payload for a studio_plus owner with published audio", async () => {
@@ -98,7 +102,7 @@ describe("GET /api/episodes/[id]/audio", () => {
     expect(res.status).toBe(409);
     const json = await res.json();
     expect(json.error).toBe(
-      "This episode has no finished audio to open in Studio yet."
+      "This episode has no audio to import."
     );
   });
 });

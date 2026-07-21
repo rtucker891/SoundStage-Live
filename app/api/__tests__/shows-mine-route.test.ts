@@ -5,16 +5,21 @@ import type { Plan } from "@/lib/plan";
 // covers every case (anon, wrong plan, success).
 let mockUid: string | null = "user-1";
 let mockPlan: Plan = "studio_plus";
-let mockShows: Array<{ id: string; title: string }> = [];
+let mockOwnedShows: Array<{ id: string; title: string }> = [];
+let mockMemberShows: Array<{ id: string; title: string }> = [];
+let mockMemberships: Array<{ show_id: string }> = [];
 
 vi.mock("@/lib/teamServer", () => ({
   admin: () => ({
-    from: () => {
+    from: (table: string) => {
+      let memberLookup = false;
       const chain: Record<string, unknown> = {
         select: () => chain,
         eq: () => chain,
+        in: () => { memberLookup = true; return chain },
         is: () => chain,
-        order: async () => ({ data: mockShows, error: null }),
+        order: async () => ({ data: memberLookup ? mockMemberShows : mockOwnedShows, error: null }),
+        then: (resolve: (value: unknown) => void) => resolve({ data: table === "show_memberships" ? mockMemberships : [], error: null }),
       };
       return chain;
     },
@@ -39,10 +44,13 @@ describe("GET /api/shows/mine", () => {
   beforeEach(() => {
     mockUid = "user-1";
     mockPlan = "studio_plus";
-    mockShows = [
+    mockOwnedShows = [
       { id: "show-1", title: "Alpha" },
+    ];
+    mockMemberShows = [
       { id: "show-2", title: "Beta" },
     ];
+    mockMemberships = [{ show_id: "show-2" }];
   });
 
   it("401s an anonymous caller", async () => {
@@ -51,15 +59,13 @@ describe("GET /api/shows/mine", () => {
     expect(res.status).toBe(401);
   });
 
-  it("403s a non-studio_plus caller", async () => {
+  it("allows the Studio plan", async () => {
     mockPlan = "studio";
     const res = await GET(req());
-    expect(res.status).toBe(403);
-    const json = await res.json();
-    expect(json.plan).toBe("studio");
+    expect(res.status).toBe(200);
   });
 
-  it("returns 200 with the caller's shows for a studio_plus caller", async () => {
+  it("returns owned and collaborative shows without duplicates", async () => {
     const res = await GET(req());
     expect(res.status).toBe(200);
     const json = await res.json();

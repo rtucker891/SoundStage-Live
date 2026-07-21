@@ -19,6 +19,7 @@ describe("creator navigation", () => {
 
   it("keeps nested creator tools under their primary navigation destination", () => {
     expect(isCreatorNavItemActive("/episodes/episode-1/editor", "/studio")).toBe(true);
+    expect(isCreatorNavItemActive("/episodes/episode-1/edit", "/studio")).toBe(true);
     expect(isCreatorNavItemActive("/episodes/episode-1/live-studio", "/studio")).toBe(true);
     expect(isCreatorNavItemActive("/episodes/episode-1/publish", "/publish")).toBe(true);
     expect(isCreatorNavItemActive("/shows/show-1/team", "/team")).toBe(true);

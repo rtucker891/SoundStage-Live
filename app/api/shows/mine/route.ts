@@ -1,83 +1,37 @@
-import { NextResponse } from "next/server";
+import { requireUser } from "@/lib/apiAuth";
+import { getPlan, isStudioPlan } from "@/lib/plan";
+import { studioJson, studioOptions, withStudioCors } from "@/lib/studioBridge";
 
-import { admin, callerId } from "@/lib/teamServer";
-import { getPlan } from "@/lib/plan";
-
-export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/**
- * GET /api/shows/mine — the "Send to Live" show picker.
- *
- * The separate SoundStage Studio app calls this (cross-origin, with the user's
- * Bearer token) to list the shows a studio_plus user owns, so they can pick one
- * to drop a flattened mixdown into as a new draft episode.
- *
- * Studio Plus only — same gate as /api/access/studio.
- */
-
-// Origins permitted to call this cross-origin (mirrors /api/access/studio).
-const ALLOWED_ORIGINS = [
-  "https://soundstage-studio.vercel.app",
-  "http://localhost:5173", // Vite dev default
-  "http://localhost:3000",
-];
-
-/** CORS headers for an allowed origin; echoes the origin only if allow-listed. */
-function corsHeaders(request: Request): Record<string, string> {
-  const origin = request.headers.get("origin");
-  const headers: Record<string, string> = {
-    "Access-Control-Allow-Methods": "GET,OPTIONS",
-    "Access-Control-Allow-Headers": "authorization,content-type",
-    "Access-Control-Allow-Credentials": "true",
-    Vary: "Origin",
-  };
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
-    headers["Access-Control-Allow-Origin"] = origin;
-  }
-  return headers;
-}
-
-export async function OPTIONS(request: Request) {
-  return new NextResponse(null, { status: 204, headers: corsHeaders(request) });
+export function OPTIONS() {
+  return studioOptions();
 }
 
 export async function GET(request: Request) {
-  const cors = corsHeaders(request);
+  const auth = await requireUser(request, "studio-shows", 60, 60_000);
+  if (!auth.ok) return withStudioCors(auth.response);
+  if (!isStudioPlan(await getPlan(auth.db, auth.uid))) return studioJson({ error: "The Studio plan is required." }, 403);
 
-  const db = admin();
-  if (!db)
-    return NextResponse.json(
-      { error: "Server not configured." },
-      { status: 500, headers: cors }
-    );
+  const [{ data: memberships, error: membershipError }, { data: ownedShows, error: ownedError }] = await Promise.all([
+    auth.db.from("show_memberships").select("show_id").eq("user_id", auth.uid),
+    auth.db.from("shows").select("id, title").eq("user_id", auth.uid).is("deleted_at", null).order("title"),
+  ]);
+  if (membershipError) return studioJson({ error: membershipError.message }, 500);
+  if (ownedError) return studioJson({ error: ownedError.message }, 500);
 
-  const uid = await callerId(db, request);
-  if (!uid)
-    return NextResponse.json(
-      { error: "Not signed in." },
-      { status: 401, headers: cors }
-    );
+  const showIds = [...new Set((memberships ?? []).map((row) => row.show_id as string))];
+  if (!showIds.length) return studioJson({ shows: ownedShows ?? [] });
 
-  // Studio Plus only — same gate the Studio app itself uses.
-  const plan = await getPlan(db, uid);
-  if (plan !== "studio_plus")
-    return NextResponse.json(
-      { error: "SoundStage Studio requires the Studio Plus plan.", plan },
-      { status: 403, headers: cors }
-    );
-
-  const { data: shows, error } = await db
+  const { data: shows, error } = await auth.db
     .from("shows")
     .select("id, title")
-    .eq("user_id", uid)
+    .in("id", showIds)
     .is("deleted_at", null)
     .order("title");
-  if (error)
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500, headers: cors }
-    );
+  if (error) return studioJson({ error: error.message }, 500);
 
-  return NextResponse.json({ shows: shows ?? [] }, { status: 200, headers: cors });
+  const combined = new Map((ownedShows ?? []).map((show) => [show.id, show]));
+  for (const show of shows ?? []) combined.set(show.id, show);
+  return studioJson({ shows: [...combined.values()].sort((a, b) => a.title.localeCompare(b.title)) });
 }

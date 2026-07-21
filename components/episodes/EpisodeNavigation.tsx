@@ -22,14 +22,14 @@ export default function EpisodeNavigation({
         href={`/episodes/${episodeId}/studio`}
         className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white"
       >
-        Studio
+        Record
       </Link>
 
       <Link
-        href={`/episodes/${episodeId}/live-studio`}
+        href={`/episodes/${episodeId}/edit`}
         className="rounded-lg bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-4 py-2 font-semibold text-white"
       >
-        AI Studio
+        Edit
       </Link>
 
       <Link
@@ -37,13 +37,6 @@ export default function EpisodeNavigation({
         className="rounded-lg bg-slate-900 px-4 py-2 font-semibold text-white"
       >
         Assets
-      </Link>
-
-      <Link
-        href={`/episodes/${episodeId}/editor`}
-        className="rounded-lg bg-amber-600 px-4 py-2 font-semibold text-white"
-      >
-        Editor
       </Link>
 
       <Link

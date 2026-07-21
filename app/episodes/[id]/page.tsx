@@ -193,13 +193,13 @@ const [generatedArtwork, setGeneratedArtwork] = useState("");
             </Link>
 
             <Link
-              href={`/episodes/${episode.id}/editor`}
+              href={`/episodes/${episode.id}/edit`}
               className="rounded-2xl border border-slate-200 bg-white p-6 shadow transition-all hover:-translate-y-1 hover:shadow-xl"
             >
-              <h2 className="text-xl font-bold">Editor</h2>
+              <h2 className="text-xl font-bold">Edit</h2>
 
               <p className="mt-2 text-sm text-slate-600">
-                Edit transcript, audio, and AI cleanup.
+                Choose browser editing or the Studio app.
               </p>
             </Link>
 

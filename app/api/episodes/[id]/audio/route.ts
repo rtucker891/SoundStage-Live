@@ -1,99 +1,49 @@
-import { NextResponse } from "next/server";
-
-import { getPlan } from "@/lib/plan";
 import { requireEpisodeRole } from "@/lib/apiAuth";
+import { getPlan, isStudioPlan } from "@/lib/plan";
+import {
+  STUDIO_ASSET_BUCKET,
+  storagePathFromUrl,
+  studioJson,
+  studioOptions,
+  withStudioCors,
+} from "@/lib/studioBridge";
 
-export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/**
- * GET /api/episodes/[id]/audio — the "Open in Studio" bridge.
- *
- * The separate SoundStage Studio app calls this (cross-origin, with the user's
- * Bearer token) to fetch a Live episode's finished audio so it can be re-edited.
- * Gated to `studio_plus` only — identical to how the Studio app itself is gated
- * by /api/access/studio — AND to callers who have a role on the parent show.
- */
-
-// Origins permitted to call this cross-origin (mirrors /api/access/studio).
-const ALLOWED_ORIGINS = [
-  "https://soundstage-studio.vercel.app",
-  "http://localhost:5173", // Vite dev default
-  "http://localhost:3000",
-];
-
-/** CORS headers for an allowed origin; echoes the origin only if allow-listed. */
-function corsHeaders(request: Request): Record<string, string> {
-  const origin = request.headers.get("origin");
-  const headers: Record<string, string> = {
-    "Access-Control-Allow-Methods": "GET,OPTIONS",
-    "Access-Control-Allow-Headers": "authorization,content-type",
-    "Access-Control-Allow-Credentials": "true",
-    Vary: "Origin",
-  };
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
-    headers["Access-Control-Allow-Origin"] = origin;
-  }
-  return headers;
+export function OPTIONS() {
+  return studioOptions();
 }
 
-/** Copy CORS headers onto an already-built response (e.g. an auth denial). */
-function withCors(res: NextResponse, cors: Record<string, string>): NextResponse {
-  for (const [k, v] of Object.entries(cors)) res.headers.set(k, v);
-  return res;
-}
-
-type Props = { params: Promise<{ id: string }> };
-
-export async function OPTIONS(request: Request) {
-  return new NextResponse(null, { status: 204, headers: corsHeaders(request) });
-}
-
-export async function GET(request: Request, { params }: Props) {
-  const cors = corsHeaders(request);
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const auth = await requireEpisodeRole(request, id, "studio-episode-audio");
+  if (!auth.ok) return withStudioCors(auth.response);
+  if (!isStudioPlan(await getPlan(auth.db, auth.uid))) return studioJson({ error: "The Studio plan is required." }, 403);
 
-  // Auth + episode access (401 anon, 404 missing episode, 403 no role).
-  const gate = await requireEpisodeRole(request, id, "episode-audio");
-  if (!gate.ok) return withCors(gate.response, cors);
-  const { db, uid } = gate;
+  const [{ data: episode }, { data: recording }, { data: asset }] = await Promise.all([
+    auth.db.from("episodes").select("id, title, published_audio_url, published_audio_mime, published_audio_size, published_audio_duration").eq("id", id).maybeSingle(),
+    auth.db.from("recordings").select("audio_url, duration, created_at").eq("episode_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    auth.db.from("assets").select("url, mime_type, file_size, created_at").eq("episode_id", id).eq("type", "recording").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+  ]);
 
-  // Studio Plus only — same gate the Studio app itself uses.
-  const plan = await getPlan(db, uid);
-  if (plan !== "studio_plus")
-    return NextResponse.json(
-      { error: "SoundStage Studio requires the Studio Plus plan.", plan },
-      { status: 403, headers: cors }
-    );
+  if (!episode) return studioJson({ error: "Episode not found." }, 404);
+  if (!episode.published_audio_url && !recording?.audio_url && !asset?.url) return studioJson({ error: "This episode has no audio to import." }, 409);
 
-  const { data: episode, error } = await db
-    .from("episodes")
-    .select(
-      "id, title, published_audio_url, published_audio_mime, published_audio_size, published_audio_duration"
-    )
-    .eq("id", id)
-    .maybeSingle();
-  if (error)
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500, headers: cors }
-    );
+  const storedUrl = asset?.url || recording?.audio_url || episode.published_audio_url;
+  const storagePath = storagePathFromUrl(storedUrl);
+  let audioUrl = storedUrl as string;
+  if (storagePath) {
+    const { data, error } = await auth.db.storage.from(STUDIO_ASSET_BUCKET).createSignedUrl(storagePath, 15 * 60);
+    if (error || !data?.signedUrl) return studioJson({ error: "Could not create a fresh audio link." }, 500);
+    audioUrl = data.signedUrl;
+  }
 
-  if (!episode?.published_audio_url)
-    return NextResponse.json(
-      { error: "This episode has no finished audio to open in Studio yet." },
-      { status: 409, headers: cors }
-    );
-
-  return NextResponse.json(
-    {
-      episodeId: episode.id,
-      title: episode.title,
-      audioUrl: episode.published_audio_url,
-      mime: episode.published_audio_mime ?? null,
-      size: episode.published_audio_size ?? null,
-      duration: episode.published_audio_duration ?? null,
-    },
-    { status: 200, headers: cors }
-  );
+  return studioJson({
+    episodeId: episode.id,
+    title: episode.title,
+    audioUrl,
+    mime: asset?.mime_type || episode.published_audio_mime || null,
+    size: Number(asset?.file_size || episode.published_audio_size) || 0,
+    duration: Number(recording?.duration || episode.published_audio_duration) || 0,
+  });
 }

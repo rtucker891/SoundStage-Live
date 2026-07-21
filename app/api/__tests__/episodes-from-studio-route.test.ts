@@ -1,46 +1,38 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Plan } from "@/lib/plan";
 
-// Mutable state driving the mocked auth + plan + show-ownership + insert results
-// so one set of mocks covers every case (anon, wrong plan, foreign show, ok).
 let mockUid: string | null = "user-1";
 let mockPlan: Plan = "studio_plus";
-let mockShow: { id: string } | null = { id: "show-1" };
+let mockRole: string | null = "owner";
 
+const SHOW_ID = "11111111-1111-4111-8111-111111111111";
 const EP_ID = "22222222-2222-4222-8222-222222222222";
-const SIGNED_URL =
-  "https://ref.supabase.co/storage/v1/object/sign/soundstage-assets/studio-imports/user-1/" +
-  EP_ID +
-  "/mixdown.wav?token=abc";
+const STORAGE_PATH = "user-1/studio-imports/upload-mixdown.wav";
+const SIGNED_URL = `https://ref.supabase.co/storage/v1/object/sign/soundstage-assets/${STORAGE_PATH}?token=abc`;
 
 vi.mock("@/lib/teamServer", () => ({
   admin: () => ({
     from: (table: string) => {
       const chain: Record<string, unknown> = {
-        select: () => chain,
-        eq: () => chain,
-        is: () => chain,
         insert: () => chain,
-        maybeSingle: async () => ({ data: mockShow, error: null }),
-        single: async () => ({ data: { id: EP_ID }, error: null }),
-        // recordings insert is awaited directly (no .select chain).
-        then: (resolve: (v: unknown) => void) =>
-          resolve({ data: null, error: null }),
+        select: () => chain,
+        single: async () => ({ data: table === "episodes" ? { id: EP_ID, title: "My Mixdown" } : null, error: null }),
+        delete: () => chain,
+        eq: () => chain,
+        then: (resolve: (value: unknown) => void) => resolve({ data: null, error: null }),
       };
-      void table;
       return chain;
     },
     storage: {
       from: () => ({
-        upload: async () => ({ error: null }),
-        createSignedUrl: async () => ({
-          data: { signedUrl: SIGNED_URL },
-          error: null,
-        }),
+        list: async () => ({ data: [{ name: "upload-mixdown.wav", metadata: { size: 4 } }], error: null }),
+        createSignedUrl: async () => ({ data: { signedUrl: SIGNED_URL }, error: null }),
+        remove: async () => ({ error: null }),
       }),
     },
   }),
   callerId: async () => mockUid,
+  roleOnShow: async () => mockRole,
 }));
 
 vi.mock("@/lib/plan", async (importOriginal) => {
@@ -50,18 +42,19 @@ vi.mock("@/lib/plan", async (importOriginal) => {
 
 import { POST } from "@/app/api/episodes/from-studio/route";
 
-function req(fields?: Partial<{ showId: string; title: string; audio: boolean }>): Request {
-  const f = { showId: "show-1", title: "My Mixdown", audio: true, ...fields };
-  const body = new FormData();
-  if (f.showId) body.set("showId", f.showId);
-  if (f.title) body.set("title", f.title);
-  if (f.audio)
-    body.set("audio", new File([new Uint8Array([1, 2, 3])], "mixdown.wav", { type: "audio/wav" }));
-  body.set("durationSeconds", "123");
+function req(): Request {
   return new Request("http://localhost/api/episodes/from-studio", {
     method: "POST",
-    headers: { authorization: "Bearer token" },
-    body,
+    headers: { authorization: "Bearer token", "content-type": "application/json" },
+    body: JSON.stringify({
+      showId: SHOW_ID,
+      title: "My Mixdown",
+      storagePath: STORAGE_PATH,
+      fileName: "mixdown.wav",
+      mimeType: "audio/wav",
+      fileSize: 4,
+      durationSeconds: 123,
+    }),
   });
 }
 
@@ -69,41 +62,31 @@ describe("POST /api/episodes/from-studio", () => {
   beforeEach(() => {
     mockUid = "user-1";
     mockPlan = "studio_plus";
-    mockShow = { id: "show-1" };
+    mockRole = "owner";
   });
 
   it("401s an anonymous caller", async () => {
     mockUid = null;
-    const res = await POST(req());
-    expect(res.status).toBe(401);
+    expect((await POST(req())).status).toBe(401);
   });
 
-  it("403s a non-studio_plus caller", async () => {
+  it("allows the Studio plan", async () => {
     mockPlan = "studio";
-    const res = await POST(req());
-    expect(res.status).toBe(403);
-    const json = await res.json();
-    expect(json.plan).toBe("studio");
+    expect((await POST(req())).status).toBe(200);
   });
 
-  it("404s when the show is not owned by the caller", async () => {
-    mockShow = null;
-    const res = await POST(req());
-    expect(res.status).toBe(404);
-    const json = await res.json();
-    expect(json.error).toBe("Show not found or not yours.");
+  it("403s when the caller cannot edit the show", async () => {
+    mockRole = null;
+    expect((await POST(req())).status).toBe(403);
   });
 
-  it("creates a draft episode + recording for a studio_plus owner", async () => {
+  it("creates a draft episode after the direct upload", async () => {
     const res = await POST(req());
     expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json).toEqual({
+    expect(await res.json()).toEqual({
       episodeId: EP_ID,
-      showId: "show-1",
+      episodeUrl: `https://sound-stage-live.vercel.app/episodes/${EP_ID}`,
       title: "My Mixdown",
-      status: "Planning",
-      episodeUrl: `http://localhost/episodes/${EP_ID}`,
     });
   });
 });

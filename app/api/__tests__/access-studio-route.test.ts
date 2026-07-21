@@ -16,7 +16,7 @@ vi.mock("@/lib/plan", async (importOriginal) => {
   return { ...actual, getPlan: async () => mockPlan };
 });
 
-import { GET, OPTIONS, studioAccessAllowed } from "@/app/api/access/studio/route";
+import { GET, OPTIONS } from "@/app/api/access/studio/route";
 
 const STUDIO_ORIGIN = "https://soundstage-studio.vercel.app";
 
@@ -25,15 +25,6 @@ function req(origin?: string): Request {
     headers: origin ? { origin } : {},
   });
 }
-
-describe("studioAccessAllowed", () => {
-  it("is true only for studio_plus", () => {
-    expect(studioAccessAllowed("studio_plus")).toBe(true);
-    expect(studioAccessAllowed("studio")).toBe(false);
-    expect(studioAccessAllowed("creator")).toBe(false);
-    expect(studioAccessAllowed("free")).toBe(false);
-  });
-});
 
 describe("GET /api/access/studio", () => {
   beforeEach(() => {
@@ -60,10 +51,10 @@ describe("GET /api/access/studio", () => {
     expect(await res.json()).toEqual({ allowed: true, plan: "studio_plus" });
   });
 
-  it("DENIES plain studio (key case)", async () => {
+  it("grants access for the Studio plan", async () => {
     mockPlan = "studio";
     const res = await GET(req(STUDIO_ORIGIN));
-    expect(await res.json()).toEqual({ allowed: false, plan: "studio" });
+    expect(await res.json()).toEqual({ allowed: true, plan: "studio" });
   });
 
   it("denies free and creator", async () => {
@@ -71,23 +62,25 @@ describe("GET /api/access/studio", () => {
     expect(await (await GET(req())).json()).toEqual({
       allowed: false,
       plan: "free",
+      reason: "Upgrade to the Studio plan to use the desktop editor.",
     });
     mockPlan = "creator";
     expect(await (await GET(req())).json()).toEqual({
       allowed: false,
       plan: "creator",
+      reason: "Upgrade to the Studio plan to use the desktop editor.",
     });
   });
 
-  it("echoes the CORS origin for an allow-listed origin", async () => {
+  it("allows the authenticated desktop client origin", async () => {
     mockPlan = "studio_plus";
     const res = await GET(req(STUDIO_ORIGIN));
-    expect(res.headers.get("Access-Control-Allow-Origin")).toBe(STUDIO_ORIGIN);
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
   });
 
-  it("omits the CORS origin header for a non-allow-listed origin", async () => {
+  it("supports packaged desktop requests with a non-HTTP origin", async () => {
     const res = await GET(req("https://evil.example.com"));
-    expect(res.headers.get("Access-Control-Allow-Origin")).toBeNull();
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
   });
 });
 
@@ -95,17 +88,17 @@ describe("OPTIONS /api/access/studio (preflight)", () => {
   it("returns 204 with CORS headers for an allowed origin", async () => {
     const res = await OPTIONS(req(STUDIO_ORIGIN));
     expect(res.status).toBe(204);
-    expect(res.headers.get("Access-Control-Allow-Origin")).toBe(STUDIO_ORIGIN);
-    expect(res.headers.get("Access-Control-Allow-Methods")).toBe("GET,OPTIONS");
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(res.headers.get("Access-Control-Allow-Methods")).toBe("GET, POST, OPTIONS");
     expect(res.headers.get("Access-Control-Allow-Headers")).toBe(
-      "authorization,content-type"
+      "authorization, content-type"
     );
-    expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
+    expect(res.headers.get("Access-Control-Allow-Credentials")).toBeNull();
   });
 
-  it("does not echo a disallowed origin on preflight", async () => {
+  it("returns the same packaged-app-safe CORS policy on preflight", async () => {
     const res = await OPTIONS(req("https://evil.example.com"));
     expect(res.status).toBe(204);
-    expect(res.headers.get("Access-Control-Allow-Origin")).toBeNull();
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
   });
 });

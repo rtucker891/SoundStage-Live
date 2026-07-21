@@ -44,7 +44,7 @@ export const creatorNavigation: CreatorNavSection[] = [
 export function isCreatorNavItemActive(pathname: string, href: string) {
   if (href === "/dashboard") return pathname === "/dashboard";
   if (href === "/studio") {
-    return pathname === "/studio" || pathname === "/editor" || /^\/episodes\/[^/]+\/(studio|editor|live-studio)$/.test(pathname);
+    return pathname === "/studio" || pathname === "/editor" || /^\/episodes\/[^/]+\/(edit|studio|editor|live-studio)$/.test(pathname);
   }
   if (href === "/publish") return pathname === "/publish" || /^\/episodes\/[^/]+\/publish$/.test(pathname);
   if (href === "/team") return pathname === "/team" || /^\/shows\/[^/]+\/team$/.test(pathname);
