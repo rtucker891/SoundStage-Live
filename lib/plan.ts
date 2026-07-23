@@ -27,6 +27,11 @@ export function isStudioPlan(plan: Plan): boolean {
 /** Paid plans backed by a real Stripe subscription. */
 const PAID_PLANS = new Set<Plan>(["creator", "studio", "studio_plus"]);
 
+/** True for any paid tier (creator/studio/studio_plus). Gates transcript editing. */
+export function isPaidPlan(plan: Plan): boolean {
+  return PAID_PLANS.has(plan);
+}
+
 /**
  * Per-tier limit on how many (non-deleted, owned) shows a user may have.
  * `null` means unlimited. Single source of truth for show-count gating.

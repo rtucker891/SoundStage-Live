@@ -28,6 +28,12 @@ import {
 import { addIntroOutro } from "@/lib/audio/addIntroOutro";
 import { compressForTranscription } from "@/lib/audio/compressForTranscription";
 import { chunkForTranscription } from "@/lib/audio/chunkForTranscription";
+import TranscriptEditor from "@/components/editor/TranscriptEditor";
+import { isPaidPlan } from "@/lib/plan";
+import {
+  mergeChunkTranscriptions,
+  type ChunkTranscription,
+} from "@/lib/transcript/offsetWords";
 
 import type { Asset } from "@/types/asset";
 import type { Episode } from "@/types/episode";
@@ -113,6 +119,42 @@ async function transcribeBlob(blob: Blob, fileName: string): Promise<string> {
 
   const data = await parseTranscribeResponse(response);
   return data.text;
+}
+
+/**
+ * POST one audio Blob to the transcription route in WORD-TIMESTAMP mode
+ * (whisper-1). Returns the chunk's text plus per-chunk word/segment timings
+ * (relative to THIS chunk — the caller offsets them across chunks). Used only
+ * for the paid transcript editor, where word timing is required.
+ */
+async function transcribeBlobWithWords(
+  blob: Blob,
+  fileName: string
+): Promise<ChunkTranscription> {
+  const formData = new FormData();
+  formData.append("file", blob, fileName);
+  formData.append("words", "1");
+
+  const response = await fetch("/api/ai/transcribe?words=1", {
+    method: "POST",
+    headers: await authHeaders(),
+    body: formData,
+  });
+
+  if (!response.ok) {
+    // Reuse the robust error parsing (handles non-JSON infra responses).
+    await parseTranscribeResponse(response);
+  }
+  const data = (await response.json()) as {
+    text?: string;
+    words?: { word: string; start: number; end: number }[];
+    segments?: { start: number; end: number; text: string }[];
+  };
+  return {
+    text: data.text ?? "",
+    words: data.words ?? [],
+    segments: data.segments ?? [],
+  };
 }
 
 export default function EpisodeEditorPage() {
@@ -289,48 +331,100 @@ export default function EpisodeEditorPage() {
         onProgress: (message) => setTranscriptMessage(message),
       });
 
-      // Small enough for one upload: send it exactly as before. Otherwise the
+      // Paid tiers get WORD-LEVEL timestamps (whisper-1) so the transcript can
+      // drive Descript-style audio editing. Free/plain paths keep the cheaper
+      // text-only model.
+      const wantWords = isPaidPlan(plan ?? "free");
+
+      // Small enough for one upload: send it in a SINGLE request. Otherwise the
       // compressed file still exceeds the serverless body limit, so we split it
       // into time-based chunks and transcribe each one in order.
-      let transcriptText: string;
-      if (compressedBlob.size < SINGLE_REQUEST_MAX_BYTES) {
-        setTranscriptMessage("Transcribing\u2026");
-        transcriptText = await transcribeBlob(
-          compressedBlob,
-          "transcription-audio.mp3"
-        );
-      } else {
-        setTranscriptMessage("Splitting audio into parts\u2026");
-        const chunks = await chunkForTranscription({
-          source: compressedBlob,
-          onProgress: (message) => setTranscriptMessage(message),
-        });
+      const singleRequest = compressedBlob.size < SINGLE_REQUEST_MAX_BYTES;
 
-        // Transcribe SEQUENTIALLY (no Promise.all) to keep chunks in order and
-        // avoid hammering the transcription API. If any part fails we stop
-        // immediately and never save a partial transcript.
-        const parts: string[] = [];
-        for (let i = 0; i < chunks.length; i++) {
-          setTranscriptMessage(
-            `Transcribing part ${i + 1} of ${chunks.length}\u2026`
+      let segments: Transcript["segments"];
+
+      if (wantWords) {
+        // Collect per-chunk word timings, then OFFSET each chunk by the
+        // cumulative duration of prior chunks so timings are absolute.
+        const chunkResults: ChunkTranscription[] = [];
+        if (singleRequest) {
+          setTranscriptMessage("Transcribing with word timings\u2026");
+          chunkResults.push(
+            await transcribeBlobWithWords(compressedBlob, "transcription-audio.mp3")
           );
-          try {
-            const text = await transcribeBlob(chunks[i], `part-${i}.mp3`);
-            parts.push(text);
-          } catch (err) {
-            const partMsg = err instanceof Error ? err.message : String(err);
-            throw new Error(
-              `Transcription failed on part ${i + 1} of ${chunks.length}: ${partMsg}`
+        } else {
+          setTranscriptMessage("Splitting audio into parts\u2026");
+          const chunks = await chunkForTranscription({
+            source: compressedBlob,
+            onProgress: (message) => setTranscriptMessage(message),
+          });
+          for (let i = 0; i < chunks.length; i++) {
+            setTranscriptMessage(
+              `Transcribing part ${i + 1} of ${chunks.length}\u2026`
             );
+            try {
+              chunkResults.push(
+                await transcribeBlobWithWords(chunks[i], `part-${i}.mp3`)
+              );
+            } catch (err) {
+              const partMsg = err instanceof Error ? err.message : String(err);
+              throw new Error(
+                `Transcription failed on part ${i + 1} of ${chunks.length}: ${partMsg}`
+              );
+            }
           }
         }
 
-        transcriptText = parts.join("\n\n");
-      }
+        const merged = mergeChunkTranscriptions(chunkResults);
+        const lastEnd = merged.words.reduce((m, w) => Math.max(m, w.end), 0);
+        segments = [
+          {
+            id: "1",
+            speaker: "Speaker",
+            startTime: 0,
+            endTime: lastEnd,
+            text: merged.text,
+            words: merged.words,
+          },
+        ];
+      } else {
+        let transcriptText: string;
+        if (singleRequest) {
+          setTranscriptMessage("Transcribing\u2026");
+          transcriptText = await transcribeBlob(
+            compressedBlob,
+            "transcription-audio.mp3"
+          );
+        } else {
+          setTranscriptMessage("Splitting audio into parts\u2026");
+          const chunks = await chunkForTranscription({
+            source: compressedBlob,
+            onProgress: (message) => setTranscriptMessage(message),
+          });
 
-      const created = await createTranscript({
-        episodeId: episode.id,
-        segments: [
+          // Transcribe SEQUENTIALLY (no Promise.all) to keep chunks in order and
+          // avoid hammering the transcription API. If any part fails we stop
+          // immediately and never save a partial transcript.
+          const parts: string[] = [];
+          for (let i = 0; i < chunks.length; i++) {
+            setTranscriptMessage(
+              `Transcribing part ${i + 1} of ${chunks.length}\u2026`
+            );
+            try {
+              const text = await transcribeBlob(chunks[i], `part-${i}.mp3`);
+              parts.push(text);
+            } catch (err) {
+              const partMsg = err instanceof Error ? err.message : String(err);
+              throw new Error(
+                `Transcription failed on part ${i + 1} of ${chunks.length}: ${partMsg}`
+              );
+            }
+          }
+
+          transcriptText = parts.join("\n\n");
+        }
+
+        segments = [
           {
             id: "1",
             speaker: "Speaker",
@@ -338,7 +432,12 @@ export default function EpisodeEditorPage() {
             endTime: 0,
             text: transcriptText,
           },
-        ],
+        ];
+      }
+
+      const created = await createTranscript({
+        episodeId: episode.id,
+        segments,
       });
 
       await createAsset({
@@ -1171,6 +1270,57 @@ export default function EpisodeEditorPage() {
                     )}
                   </div>
                 ))}
+
+                {(() => {
+                  const transcriptWords = transcript.segments.flatMap(
+                    (segment) => segment.words ?? []
+                  );
+
+                  // Free tier: locked. Show an upgrade prompt instead of the editor.
+                  if (!isPaidPlan(plan ?? "free")) {
+                    return (
+                      <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-5">
+                        <p className="text-sm font-bold uppercase tracking-wide text-indigo-700">
+                          Paid feature
+                        </p>
+                        <h3 className="mt-1 text-xl font-bold text-slate-900">
+                          Edit audio by editing the transcript
+                        </h3>
+                        <p className="mt-2 text-sm text-slate-600">
+                          Delete words to cut the matching audio, click a word
+                          to jump there, and export a clean edit. Available on
+                          Creator, Studio, and Studio+ plans.
+                        </p>
+                        <a
+                          href="/pricing"
+                          className="mt-4 inline-block rounded-lg bg-indigo-600 px-5 py-2.5 font-semibold text-white"
+                        >
+                          Upgrade to unlock
+                        </a>
+                      </div>
+                    );
+                  }
+
+                  // Paid, but this transcript has no word timings (generated
+                  // before this feature, or via the text-only path).
+                  if (transcriptWords.length === 0) {
+                    return (
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
+                        This transcript has no word timings yet. Regenerate the
+                        transcript to enable transcript-based audio editing.
+                      </div>
+                    );
+                  }
+
+                  if (!recordingAsset?.url) return null;
+
+                  return (
+                    <TranscriptEditor
+                      words={transcriptWords}
+                      audioUrl={recordingAsset.url}
+                    />
+                  );
+                })()}
               </div>
             )}
           </div>

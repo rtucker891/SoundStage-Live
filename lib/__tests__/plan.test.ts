@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   getPlan,
   isStudioPlan,
+  isPaidPlan,
   showLimitFor,
   canCreateShow,
   seatLimitFor,
@@ -44,6 +45,15 @@ describe("isStudioPlan", () => {
     expect(isStudioPlan("studio_plus")).toBe(true);
     expect(isStudioPlan("creator")).toBe(false);
     expect(isStudioPlan("free")).toBe(false);
+  });
+});
+
+describe("isPaidPlan", () => {
+  it("all paid tiers unlock transcript editing; free does not", () => {
+    expect(isPaidPlan("creator")).toBe(true);
+    expect(isPaidPlan("studio")).toBe(true);
+    expect(isPaidPlan("studio_plus")).toBe(true);
+    expect(isPaidPlan("free")).toBe(false);
   });
 });
 
