@@ -418,11 +418,14 @@ export async function createEpisode(data: {
   }
 
   const { data: matchingShow, error: showError } = await supabase
-    .from("shows")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("title", data.show)
-    .single();
+  .from("shows")
+  .select("id")
+  .eq("user_id", user.id)
+  .eq("title", data.show)
+  .is("deleted_at", null)
+  .order("created_at", { ascending: false })
+  .limit(1)
+  .maybeSingle();
 
   if (showError || !matchingShow) {
     throw new Error("Matching show not found");
@@ -558,33 +561,49 @@ export async function updateEpisode(data: {
   }
 
   const { data: matchingShow, error: showError } = await supabase
-    .from("shows")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("title", data.show)
-    .single();
+  .from("shows")
+  .select("id")
+  .eq("user_id", user.id)
+  .eq("title", data.show)
+  .is("deleted_at", null)
+  .order("created_at", { ascending: false })
+  .limit(1)
+  .maybeSingle();
 
   if (showError || !matchingShow) {
     throw new Error("Matching show not found");
   }
 
-  const { data: updatedEpisode, error } = await supabase
-    .from("episodes")
-    .update({
-      title: data.title,
-      guest: data.guest,
-      status: data.status,
-      show_id: matchingShow.id,
-    })
-    .eq("id", data.id)
-    .eq("user_id", user.id)
-    .select("id, title, guest, status")
-    .single();
+ const { data: updatedEpisode, error } = await supabase
+  .from("episodes")
+  .update({
+    title: data.title,
+    guest: data.guest,
+    status: data.status,
+    show_id: matchingShow.id,
+  })
+  .eq("id", data.id)
+  .eq("user_id", user.id)
+  .select("id, title, guest, status")
+  .maybeSingle();
 
-  if (error) {
-    throw new Error(error.message);
-  }
+if (error) {
+  throw new Error(error.message);
+}
 
+if (!updatedEpisode) {
+  throw new Error(
+    "Episode not found or you do not have permission to update it."
+  );
+}
+
+return {
+  id: updatedEpisode.id,
+  title: updatedEpisode.title,
+  guest: updatedEpisode.guest || "Pending",
+  status: updatedEpisode.status || "Planning",
+  show: data.show,
+};
   return {
     id: updatedEpisode.id,
     title: updatedEpisode.title,
