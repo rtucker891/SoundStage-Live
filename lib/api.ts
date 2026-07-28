@@ -1,5 +1,4 @@
 import { supabase } from "@/lib/supabaseClient";
-import { authHeaders } from "@/lib/authHeaders";
 import type { ShowNote } from "@/types/show-note";
 import type { Asset } from "@/types/asset";
 import type { Show } from "@/types/show";
@@ -131,33 +130,35 @@ export async function createShow(data: {
   title: string;
   description: string;
 }) {
-  // Creation goes through the server route so the per-tier show limit is
-  // enforced authoritatively (the client cannot be trusted to gate itself).
-  const res = await fetch("/api/shows", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-    body: JSON.stringify(data),
-  });
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const body = (await res.json().catch(() => ({}))) as {
-    id?: string;
-    title?: string;
-    description?: string;
-    status?: Show["status"];
-    episodes?: number;
-    error?: string;
-  };
+  if (!user) {
+    throw new Error("Not signed in");
+  }
 
-  if (!res.ok) {
-    throw new Error(body.error || "Could not create show.");
+  const { data: createdShow, error } = await supabase
+    .from("shows")
+    .insert({
+      user_id: user.id,
+      title: data.title,
+      description: data.description,
+      status: "Draft",
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
   }
 
   return {
-    id: body.id!,
-    title: body.title!,
-    description: body.description || "",
-    status: body.status || "Draft",
-    episodes: body.episodes ?? 0,
+    id: createdShow.id,
+    title: createdShow.title,
+    description: createdShow.description || "",
+    status: createdShow.status || "Draft",
+    episodes: 0,
   };
 }
 
@@ -286,16 +287,7 @@ export async function getEpisodes(): Promise<Episode[]> {
     throw new Error(error.message);
   }
 
-  type EpisodeRow = {
-    id: string;
-    title: string;
-    guest: string | null;
-    status: EpisodeStatus | null;
-    cover_art_url: string | null;
-    shows: { title?: string } | null;
-  };
-
-  return (data as EpisodeRow[]).map((episode) => ({
+  return data.map((episode: any) => ({
     id: episode.id,
     title: episode.title,
     guest: episode.guest || "Pending",
@@ -426,11 +418,14 @@ export async function createEpisode(data: {
   }
 
   const { data: matchingShow, error: showError } = await supabase
-    .from("shows")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("title", data.show)
-    .single();
+  .from("shows")
+  .select("id")
+  .eq("user_id", user.id)
+  .eq("title", data.show)
+  .is("deleted_at", null)
+  .order("created_at", { ascending: false })
+  .limit(1)
+  .maybeSingle();
 
   if (showError || !matchingShow) {
     throw new Error("Matching show not found");
@@ -566,33 +561,49 @@ export async function updateEpisode(data: {
   }
 
   const { data: matchingShow, error: showError } = await supabase
-    .from("shows")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("title", data.show)
-    .single();
+  .from("shows")
+  .select("id")
+  .eq("user_id", user.id)
+  .eq("title", data.show)
+  .is("deleted_at", null)
+  .order("created_at", { ascending: false })
+  .limit(1)
+  .maybeSingle();
 
   if (showError || !matchingShow) {
     throw new Error("Matching show not found");
   }
 
-  const { data: updatedEpisode, error } = await supabase
-    .from("episodes")
-    .update({
-      title: data.title,
-      guest: data.guest,
-      status: data.status,
-      show_id: matchingShow.id,
-    })
-    .eq("id", data.id)
-    .eq("user_id", user.id)
-    .select("id, title, guest, status")
-    .single();
+ const { data: updatedEpisode, error } = await supabase
+  .from("episodes")
+  .update({
+    title: data.title,
+    guest: data.guest,
+    status: data.status,
+    show_id: matchingShow.id,
+  })
+  .eq("id", data.id)
+  .eq("user_id", user.id)
+  .select("id, title, guest, status")
+  .maybeSingle();
 
-  if (error) {
-    throw new Error(error.message);
-  }
+if (error) {
+  throw new Error(error.message);
+}
 
+if (!updatedEpisode) {
+  throw new Error(
+    "Episode not found or you do not have permission to update it."
+  );
+}
+
+return {
+  id: updatedEpisode.id,
+  title: updatedEpisode.title,
+  guest: updatedEpisode.guest || "Pending",
+  status: updatedEpisode.status || "Planning",
+  show: data.show,
+};
   return {
     id: updatedEpisode.id,
     title: updatedEpisode.title,
@@ -600,38 +611,6 @@ export async function updateEpisode(data: {
     status: updatedEpisode.status || "Planning",
     show: data.show,
   };
-}
-
-/**
- * Update just an episode's title. Used by the Live-to-Published Studio review
- * screen so a creator can accept an AI-suggested title before publishing,
- * without touching guest/status/show. Scoped to the current user's own episode.
- */
-export async function updateEpisodeTitle(id: string, title: string) {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    throw new Error("Not signed in");
-  }
-
-  const clean = title.trim();
-  if (!clean) throw new Error("Title cannot be empty.");
-
-  const { data, error } = await supabase
-    .from("episodes")
-    .update({ title: clean })
-    .eq("id", id)
-    .eq("user_id", user.id)
-    .select("id, title")
-    .single();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return { id: data.id, title: data.title };
 }
 
 export async function getRecordings(): Promise<Recording[]> {
